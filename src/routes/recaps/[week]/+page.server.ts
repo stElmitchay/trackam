@@ -2,8 +2,8 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals: { supabase } }) => {
-	const weekNum = parseInt(params.week);
-	if (isNaN(weekNum)) throw error(400, 'Invalid week number');
+	const cycleNum = parseInt(params.week);
+	if (isNaN(cycleNum)) throw error(400, 'Invalid demo cycle number');
 
 	const { data: activeSeason } = await supabase
 		.from('seasons')
@@ -13,16 +13,29 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 
 	if (!activeSeason) throw error(404, 'No active season');
 
-	const { data: projects } = await supabase
+	// Query by demo_cycle first, fall back to week for legacy data
+	let { data: projects } = await supabase
 		.from('projects')
 		.select('*, submitter:profiles!submitted_by(*)')
 		.eq('season', activeSeason.id)
-		.eq('week', weekNum)
+		.eq('demo_cycle', cycleNum)
 		.in('status', ['submitted', 'featured'])
 		.order('annual_cost_replaced', { ascending: false });
 
+	// Fallback: try week column for legacy data
 	if (!projects || projects.length === 0) {
-		throw error(404, `No submissions for week ${weekNum}`);
+		const result = await supabase
+			.from('projects')
+			.select('*, submitter:profiles!submitted_by(*)')
+			.eq('season', activeSeason.id)
+			.eq('week', cycleNum)
+			.in('status', ['submitted', 'featured'])
+			.order('annual_cost_replaced', { ascending: false });
+		projects = result.data;
+	}
+
+	if (!projects || projects.length === 0) {
+		throw error(404, `No submissions for demo cycle ${cycleNum}`);
 	}
 
 	// Stats
@@ -45,7 +58,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase } }) => 
 
 	return {
 		season: activeSeason,
-		week: weekNum,
+		cycle: cycleNum,
 		projects,
 		stats: {
 			submissions: projects.length,

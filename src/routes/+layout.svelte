@@ -1,30 +1,52 @@
 <script lang="ts">
 	import '../app.css';
-	import Sidebar from '$lib/components/layout/Sidebar.svelte';
-	import Topbar from '$lib/components/layout/Topbar.svelte';
+	import NavBar from '$lib/components/layout/NavBar.svelte';
+	import FullScreenMenu from '$lib/components/layout/FullScreenMenu.svelte';
+	import CommandPalette from '$lib/components/layout/CommandPalette.svelte';
 
 	let { children, data } = $props();
-	let sidebarOpen = $state(true);
+	let menuOpen = $state(false);
+	let paletteOpen = $state(false);
+
+	function handleKeydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+			e.preventDefault();
+			paletteOpen = !paletteOpen;
+		}
+	}
 </script>
 
-<div class="flex h-screen bg-bg text-text font-sans antialiased grain-overlay relative">
-	<!-- Ambient background orbs -->
-	<div class="ambient-orb w-[600px] h-[600px] bg-primary/20 top-[-200px] left-[-100px]"></div>
-	<div class="ambient-orb w-[400px] h-[400px] bg-blue-500/10 bottom-[10%] right-[-100px]"></div>
-	<div class="ambient-orb w-[300px] h-[300px] bg-accent/10 top-[50%] left-[30%]"></div>
+<svelte:window onkeydown={handleKeydown} />
 
-	<Sidebar open={sidebarOpen} season={data.currentSeason} user={data.profile} />
+<div class="min-h-screen bg-bg text-text font-sans antialiased grain-overlay">
+	<NavBar
+		onToggleMenu={() => menuOpen = !menuOpen}
+		user={data.profile}
+		session={data.session}
+	/>
 
-	<div class="flex flex-1 flex-col overflow-hidden relative z-10">
-		<Topbar
-			onToggleSidebar={() => sidebarOpen = !sidebarOpen}
-			user={data.profile}
-			session={data.session}
-		/>
-		<main class="flex-1 overflow-y-auto">
-			<div class="mx-auto max-w-7xl px-8 py-10 lg:px-12">
-				{@render children()}
-			</div>
-		</main>
-	</div>
+	<FullScreenMenu
+		open={menuOpen}
+		onClose={() => menuOpen = false}
+		season={data.currentSeason}
+		isDemoDay={data.isDemoDay}
+	/>
+
+	<CommandPalette
+		open={paletteOpen}
+		onClose={() => paletteOpen = false}
+	/>
+
+	{#if data.isDemoDay}
+		<a href="/demo-day" class="fixed top-0 left-0 right-0 z-[60] bg-text text-bg text-center py-1.5 text-xs font-medium tracking-wider uppercase hover:opacity-90 transition-all">
+			<span class="inline-flex items-center gap-2">
+				<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-bg opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-bg"></span></span>
+				Demo Day is Live
+			</span>
+		</a>
+	{/if}
+
+	<main class="{data.isDemoDay ? 'pt-20' : 'pt-14'}">
+		{@render children()}
+	</main>
 </div>

@@ -18,9 +18,9 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 		.in('status', ['submitted', 'featured'])
 		.order('annual_cost_replaced', { ascending: false });
 
-	// Aggregate by week
-	const weekMap = new Map<number, {
-		week: number;
+	// Aggregate by demo cycle (fall back to week for legacy data)
+	const cycleMap = new Map<number, {
+		cycle: number;
 		count: number;
 		costSaved: number;
 		hoursSaved: number;
@@ -28,8 +28,8 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 	}>();
 
 	for (const p of projects ?? []) {
-		const w = p.week ?? 1;
-		const existing = weekMap.get(w) ?? { week: w, count: 0, costSaved: 0, hoursSaved: 0, winner: null };
+		const c = p.demo_cycle ?? p.week ?? 1;
+		const existing = cycleMap.get(c) ?? { cycle: c, count: 0, costSaved: 0, hoursSaved: 0, winner: null };
 		existing.count++;
 		existing.costSaved += p.annual_cost_replaced ?? 0;
 		existing.hoursSaved += p.estimated_hours_saved_weekly ?? 0;
@@ -40,10 +40,10 @@ export const load: PageServerLoad = async ({ locals: { supabase } }) => {
 				costSaved: p.annual_cost_replaced ?? 0
 			};
 		}
-		weekMap.set(w, existing);
+		cycleMap.set(c, existing);
 	}
 
-	const weeks = Array.from(weekMap.values()).sort((a, b) => b.week - a.week);
+	const cycles = Array.from(cycleMap.values()).sort((a, b) => b.cycle - a.cycle);
 
-	return { season: activeSeason, weeks };
+	return { season: activeSeason, cycles };
 };

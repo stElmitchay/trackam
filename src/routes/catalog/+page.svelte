@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ScrollReveal from '$lib/components/ui/ScrollReveal.svelte';
+
 	let { data } = $props();
 	let search = $state('');
 
@@ -27,99 +29,105 @@
 	});
 </script>
 
-<div class="space-y-8">
-	<div>
-		<h1 class="text-3xl font-display font-bold text-text tracking-tighter">Catalog</h1>
-		<p class="text-sm text-text-muted mt-1">Every Sinai project, searchable</p>
-	</div>
+<div class="px-6 md:px-10 lg:px-16 py-10">
+	<h1 class="heading-page mb-2 animate-fade-up stagger-1">Catalog</h1>
+	<p class="text-sm text-text-muted mb-8 animate-fade-up stagger-2">Every project, searchable</p>
 
 	<input
 		type="text"
 		placeholder="Search by name, tool, tech..."
 		bind:value={search}
-		class="glass-input px-4 py-2 text-sm text-text w-72"
+		class="input-box text-sm w-72 py-1.5 px-3 mb-8 animate-fade-up stagger-3"
 	/>
 
+	<!-- Tag Clouds -->
 	{#if aiTools.length > 0 || techStack.length > 0}
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-			{#if aiTools.length > 0}
-				<div class="glass-card p-6">
-					<h3 class="text-sm font-display font-semibold text-text mb-3">AI Tools</h3>
-					<div class="flex flex-wrap gap-2">
-						{#each aiTools as tool}
-							{@const count = data.projects.filter((p: any) => (p.ai_tools_used ?? []).includes(tool)).length}
-							<span class="tag-primary">{tool} ({count})</span>
-						{/each}
+		<ScrollReveal>
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10 border-t border-border pt-8">
+				{#if aiTools.length > 0}
+					<div>
+						<h3 class="heading-section mb-3">AI Tools</h3>
+						<p class="text-sm text-text-secondary leading-relaxed">
+							{#each aiTools as tool, i}
+								{@const count = data.projects.filter((p: any) => (p.ai_tools_used ?? []).includes(tool)).length}
+								<span class="text-text">{tool}</span><span class="text-text-muted"> ({count})</span>{#if i < aiTools.length - 1}<span class="text-border-strong"> &middot; </span>{/if}
+							{/each}
+						</p>
 					</div>
-				</div>
-			{/if}
-			{#if techStack.length > 0}
-				<div class="glass-card p-6">
-					<h3 class="text-sm font-display font-semibold text-text mb-3">Tech Stack</h3>
-					<div class="flex flex-wrap gap-2">
-						{#each techStack as tech}
-							{@const count = data.projects.filter((p: any) => (p.tech_stack ?? []).includes(tech)).length}
-							<span class="tag-neutral">{tech} ({count})</span>
-						{/each}
+				{/if}
+				{#if techStack.length > 0}
+					<div>
+						<h3 class="heading-section mb-3">Tech Stack</h3>
+						<p class="text-sm text-text-secondary leading-relaxed">
+							{#each techStack as tech, i}
+								{@const count = data.projects.filter((p: any) => (p.tech_stack ?? []).includes(tech)).length}
+								<span class="text-text">{tech}</span><span class="text-text-muted"> ({count})</span>{#if i < techStack.length - 1}<span class="text-border-strong"> &middot; </span>{/if}
+							{/each}
+						</p>
 					</div>
-				</div>
-			{/if}
-		</div>
+				{/if}
+			</div>
+		</ScrollReveal>
 	{/if}
 
+	<!-- Tool Replacements -->
 	{#if Object.keys(toolMap).length > 0}
-		<div class="glass-card p-6">
-			<h3 class="text-sm font-display font-semibold text-text mb-4">Tool Replacements</h3>
-			<div class="space-y-2">
-				{#each Object.entries(toolMap) as [tool, projects]}
-					<div class="flex items-center gap-3 rounded-lg bg-white/[0.03] border border-white/[0.04] px-4 py-3">
-						<span class="text-sm text-danger line-through w-36 flex-shrink-0">{tool}</span>
+		<ScrollReveal>
+			<div class="mb-10 border-t border-border pt-8">
+				<h3 class="heading-section mb-4">Tool Replacements</h3>
+				{#each Object.entries(toolMap) as [tool, projects], i}
+					<div class="flex items-center gap-4 py-3 {i > 0 ? 'border-t border-border' : ''}">
+						<span class="text-sm text-text-muted line-through w-32 flex-shrink-0">{tool}</span>
 						<span class="text-text-muted">&rarr;</span>
 						<div class="flex flex-wrap gap-1.5">
 							{#each projects as project}
-								<a href="/projects/{project.id}" class="tag-success hover:bg-success/20 transition-colors">
-									{project.title}
-								</a>
+								<a href="/projects/{project.id}" class="text-sm text-text link-draw">{project.title}</a>
+								{#if projects.indexOf(project) < projects.length - 1}
+									<span class="text-text-muted">,</span>
+								{/if}
 							{/each}
 						</div>
 					</div>
 				{/each}
 			</div>
-		</div>
+		</ScrollReveal>
 	{/if}
 
-	{#if filtered.length > 0}
-		<div class="glass-card overflow-hidden">
+	<!-- Projects Table -->
+	<ScrollReveal>
+		{#if filtered.length > 0}
 			<table class="w-full">
 				<thead>
-					<tr class="border-b border-white/[0.06] text-xs font-display font-medium text-text-muted uppercase tracking-wider">
-						<th class="px-6 py-4 text-left">Project</th>
-						<th class="px-6 py-4 text-left">Replaces</th>
-						<th class="px-6 py-4 text-left">AI Tools</th>
-						<th class="px-6 py-4 text-right">Saved</th>
+					<tr class="border-b border-border-strong">
+						<th class="heading-section text-left px-4 py-3">Project</th>
+						<th class="heading-section text-left px-4 py-3 hidden md:table-cell">Replaces</th>
+						<th class="heading-section text-left px-4 py-3 hidden md:table-cell">AI Tools</th>
+						<th class="heading-section text-right px-4 py-3">Saved</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-white/[0.04]">
-					{#each filtered as project}
-						<tr class="table-row-hover">
-							<td class="px-6 py-4"><a href="/projects/{project.id}" class="text-sm font-medium text-text hover:text-primary-light transition-colors">{project.title}</a></td>
-							<td class="px-6 py-4 text-sm text-text-muted">{project.replaces_tool || '—'}</td>
-							<td class="px-6 py-4">
+				<tbody>
+					{#each filtered as project, i}
+						<tr class="{i % 2 === 0 ? 'bg-bg' : 'bg-surface-alt'} table-row-hover">
+							<td class="px-4 py-3.5">
+								<a href="/projects/{project.id}" class="text-sm font-serif text-text hover:text-text-secondary transition-colors">{project.title}</a>
+							</td>
+							<td class="px-4 py-3.5 text-sm text-text-muted hidden md:table-cell">{project.replaces_tool || '—'}</td>
+							<td class="px-4 py-3.5 hidden md:table-cell">
 								<div class="flex gap-1.5">
 									{#each (project.ai_tools_used ?? []).slice(0, 3) as tool}
-										<span class="tag-primary">{tool}</span>
+										<span class="tag">{tool}</span>
 									{/each}
 								</div>
 							</td>
-							<td class="px-6 py-4 text-sm font-medium font-mono text-success text-right">${((project.annual_cost_replaced ?? 0) / 1000).toFixed(0)}k</td>
+							<td class="px-4 py-3.5 text-sm text-data text-positive text-right">${((project.annual_cost_replaced ?? 0) / 1000).toFixed(0)}K</td>
 						</tr>
 					{/each}
 				</tbody>
 			</table>
-		</div>
-	{:else}
-		<div class="glass-card p-16 text-center">
-			<p class="text-sm text-text-muted">No projects found</p>
-		</div>
-	{/if}
+		{:else}
+			<div class="py-20 text-center">
+				<p class="text-sm text-text-muted">No projects found</p>
+			</div>
+		{/if}
+	</ScrollReveal>
 </div>

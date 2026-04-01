@@ -1,5 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
+import { parseRepoUrl, getRepoInfo, getContributors } from '$lib/server/github';
 
 export const load: PageServerLoad = async ({ params, locals: { supabase, session } }) => {
 	const { data: project } = await supabase
@@ -12,7 +13,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, session
 		throw error(404, 'Project not found');
 	}
 
-	// Fetch team members, comments, and adoptions in parallel
+	// Fetch team members, comments, adoptions, and milestones in parallel
 	const teamPromise = project.team_members?.length > 0
 		? supabase.from('profiles').select('*').in('id', project.team_members)
 		: Promise.resolve({ data: [] });
@@ -28,17 +29,72 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, session
 		.select('*, adopter:profiles!user_id(*)')
 		.eq('project_id', params.id);
 
-	const [teamResult, commentsResult, adoptionsResult] = await Promise.all([
+	const milestonesPromise = supabase
+		.from('milestones')
+		.select('*')
+		.eq('project_id', params.id)
+		.order('created_at', { ascending: false });
+
+	const nextStepsPromise = supabase
+		.from('next_steps')
+		.select('*')
+		.eq('project_id', params.id)
+		.eq('completed', false)
+		.order('created_at', { ascending: false })
+		.limit(5);
+
+	const latestAnalysisPromise = supabase
+		.from('ai_analyses')
+		.select('dpg_evaluation')
+		.eq('project_id', params.id)
+		.order('analyzed_at', { ascending: false })
+		.limit(1)
+		.single();
+
+	const [teamResult, commentsResult, adoptionsResult, milestonesResult, nextStepsResult, analysisResult] = await Promise.all([
 		teamPromise,
 		commentsPromise,
-		adoptionsPromise
+		adoptionsPromise,
+		milestonesPromise,
+		nextStepsPromise,
+		latestAnalysisPromise
 	]);
+
+	// Fetch GitHub repo info if user has a connection and project has a repo_url
+	let repoInfo = null;
+	let contributors = null;
+	if (project.repo_url && session?.user?.id) {
+		const { data: ghConn } = await supabase
+			.from('github_connections')
+			.select('access_token')
+			.eq('user_id', session.user.id)
+			.single();
+
+		if (ghConn?.access_token) {
+			const parsed = parseRepoUrl(project.repo_url);
+			if (parsed) {
+				try {
+					[repoInfo, contributors] = await Promise.all([
+						getRepoInfo(ghConn.access_token, parsed.owner, parsed.repo),
+						getContributors(ghConn.access_token, parsed.owner, parsed.repo)
+					]);
+				} catch {
+					// GitHub API error — continue without repo data
+				}
+			}
+		}
+	}
 
 	return {
 		project,
 		teamMembers: teamResult.data ?? [],
 		comments: commentsResult.data ?? [],
 		adoptions: adoptionsResult.data ?? [],
+		milestones: milestonesResult.data ?? [],
+		nextSteps: nextStepsResult.data ?? [],
+		dpgEvaluation: analysisResult.data?.dpg_evaluation ?? null,
+		repoInfo,
+		contributors,
 		userId: session?.user?.id ?? null
 	};
 };

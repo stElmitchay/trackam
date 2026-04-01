@@ -113,6 +113,26 @@ export const actions: Actions = {
 			week = Math.max(1, Math.ceil((now.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000)));
 		}
 
+		// Calculate demo cycle (month number relative to season start)
+		let demoCycle = 1;
+		if (activeSeason) {
+			const start = new Date(activeSeason.start_date);
+			const now = new Date();
+			demoCycle = Math.max(1,
+				(now.getFullYear() - start.getFullYear()) * 12
+				+ (now.getMonth() - start.getMonth())
+				+ 1
+			);
+		}
+
+		// Determine project type from submitter's role
+		const { data: submitterProfile } = await supabase
+			.from('profiles')
+			.select('role')
+			.eq('id', session.user.id)
+			.single();
+		const projectType = submitterProfile?.role || 'community';
+
 		const { data, error } = await supabase.from('projects').insert({
 			title,
 			description,
@@ -130,6 +150,8 @@ export const actions: Actions = {
 			submitted_by: session.user.id,
 			season: seasonId,
 			week,
+			demo_cycle: demoCycle,
+			project_type: projectType,
 			status: 'submitted',
 			tool_request_id
 		}).select().single();
@@ -138,7 +160,7 @@ export const actions: Actions = {
 
 		// Award XP for submitting a project and update streak
 		await supabase.rpc('add_xp', { user_id: session.user.id, amount: SUBMIT_PROJECT_XP });
-		await supabase.rpc('calculate_streak', { p_user_id: session.user.id });
+		await supabase.rpc('calculate_monthly_streak', { p_user_id: session.user.id });
 
 		// If this project fulfills a claimed request, mark it completed and award XP (base + bounty)
 		if (tool_request_id) {

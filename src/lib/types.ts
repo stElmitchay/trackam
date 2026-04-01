@@ -5,6 +5,9 @@ export interface Profile {
 	avatar_url?: string;
 	department: string;
 	title?: string;
+	role: 'internal' | 'community';
+	github_username?: string;
+	github_connected: boolean;
 	total_xp: number;
 	level: number;
 	streak: number;
@@ -31,6 +34,8 @@ export interface Project {
 	season: number;
 	week: number;
 	status: 'draft' | 'submitted' | 'featured';
+	project_type: 'internal' | 'community';
+	demo_cycle?: number;
 	adoption_count: number;
 	tool_request_id?: string;
 	created_at: string;
@@ -124,4 +129,92 @@ export interface DepartmentStats {
 	total_cost_saved: number;
 	total_hours_saved: number;
 	active_builders: number;
+}
+
+export interface GitHubConnection {
+	id: string;
+	user_id: string;
+	github_user_id: number;
+	github_username: string;
+	access_token: string;
+	refresh_token?: string;
+	token_expires_at?: string;
+	scopes: string[];
+	connected_at: string;
+	updated_at: string;
+}
+
+export interface AIAnalysis {
+	id: string;
+	project_id: string;
+	demo_cycle: number;
+	season?: number;
+	analysis_json: {
+		summary: string;
+		quality_score: number;
+		total_suggested_xp: number;
+		milestones: Array<{
+			title: string;
+			description: string;
+			category: MilestoneCategory;
+			suggested_xp: number;
+		}>;
+	};
+	milestones: string[];
+	xp_awarded: number;
+	commit_count: number;
+	lines_changed: number;
+	languages: Record<string, number>;
+	dpg_evaluation?: DPGEvaluation;
+	analyzed_at: string;
+}
+
+export type MilestoneCategory = 'feature' | 'bugfix' | 'docs' | 'refactor' | 'test' | 'infra' | 'other';
+
+export interface Milestone {
+	id: string;
+	project_id: string;
+	demo_cycle: number;
+	season?: number;
+	title: string;
+	description: string;
+	category: MilestoneCategory;
+	source: 'ai' | 'manual';
+	xp_value: number;
+	created_at: string;
+}
+
+export interface NextStep {
+	id: string;
+	project_id: string;
+	analysis_id?: string;
+	demo_cycle: number;
+	season?: number;
+	title: string;
+	description: string;
+	category: MilestoneCategory;
+	estimated_xp: number;
+	completed: boolean;
+	completed_at?: string;
+	created_at: string;
+}
+
+export interface DPGEvaluation {
+	overall_score: number;
+	checklist: Array<{
+		criterion: string;
+		indicator: number;
+		status: 'pass' | 'fail' | 'partial' | 'unknown';
+		reasoning: string;
+	}>;
+}
+
+export interface Newsletter {
+	id: string;
+	demo_cycle: number;
+	season?: number;
+	title: string;
+	content_markdown: string;
+	stats_json: Record<string, any>;
+	generated_at: string;
 }

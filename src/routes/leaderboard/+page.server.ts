@@ -1,17 +1,25 @@
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals: { supabase } }) => {
+export const load: PageServerLoad = async ({ locals: { supabase }, url }) => {
+	const type = url.searchParams.get('type') || 'all';
+
 	// Fetch profiles with project stats
 	const { data: profiles } = await supabase
 		.from('profiles')
 		.select('*')
 		.order('total_xp', { ascending: false });
 
-	// Fetch all projects for ranking
-	const { data: projects } = await supabase
+	// Fetch projects, optionally filtered by type
+	let projectQuery = supabase
 		.from('projects')
 		.select('*, submitter:profiles!submitted_by(*)')
 		.order('annual_cost_replaced', { ascending: false });
+
+	if (type !== 'all') {
+		projectQuery = projectQuery.eq('project_type', type);
+	}
+
+	const { data: projects } = await projectQuery;
 
 	// Build builder rankings with project counts
 	const builderStats = (profiles ?? []).map((profile, index) => {

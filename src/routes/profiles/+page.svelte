@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ScrollReveal from '$lib/components/ui/ScrollReveal.svelte';
+
 	let { data } = $props();
 
 	let search = $state('');
@@ -19,24 +21,20 @@
 	});
 </script>
 
-<div class="space-y-8">
-	<div>
-		<h1 class="text-3xl font-display font-bold text-text tracking-tighter">Builders</h1>
-		<p class="text-sm text-text-muted mt-1">{data.profiles.length} people</p>
-	</div>
+<div class="px-6 md:px-10 lg:px-16 py-10">
+	<h1 class="heading-page mb-2 animate-fade-up stagger-1">Builders</h1>
+	<p class="text-sm text-text-muted mb-8 animate-fade-up stagger-2">{data.profiles.length} people</p>
 
-	<div class="flex items-center gap-3">
+	<!-- Filters -->
+	<div class="flex items-center gap-3 mb-8 animate-fade-up stagger-3">
 		<input
 			type="text"
 			placeholder="Search..."
 			bind:value={search}
-			class="glass-input px-4 py-2 text-sm text-text w-64"
+			class="input-box text-sm w-56 py-1.5 px-3"
 		/>
 		{#if departments.length > 0}
-			<select
-				bind:value={filterDept}
-				class="glass-input px-3 py-2 text-sm text-text"
-			>
+			<select bind:value={filterDept} class="input-box text-sm py-1.5 px-3 w-auto">
 				<option value="all">All Departments</option>
 				{#each departments as dept}
 					<option value={dept}>{dept}</option>
@@ -45,51 +43,49 @@
 		{/if}
 	</div>
 
-	{#if filtered.length > 0}
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-			{#each filtered as profile}
-				<a
-					href="/profiles/{profile.id}"
-					class="group glass-card-hover p-6 block"
-				>
-					<div class="flex items-center gap-3">
-						{#if profile.avatar_url}
-							<img src={profile.avatar_url} alt={profile.full_name} class="h-10 w-10 rounded-full object-cover ring-2 ring-primary/20" />
-						{:else}
-							<div class="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary-light ring-2 ring-primary/20">
-								{profile.full_name?.charAt(0) ?? '?'}
+	<ScrollReveal>
+		{#if filtered.length > 0}
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border">
+				{#each filtered as profile}
+					<a href="/profiles/{profile.id}" class="group bg-bg p-5 hover:bg-surface-alt transition-colors">
+						<div class="flex items-center gap-3 mb-4">
+							{#if profile.avatar_url}
+								<img src={profile.avatar_url} alt={profile.full_name} class="h-9 w-9 rounded-full object-cover" />
+							{:else}
+								<div class="h-9 w-9 rounded-full bg-surface-alt flex items-center justify-center text-sm font-serif text-text">
+									{profile.full_name?.charAt(0) ?? '?'}
+								</div>
+							{/if}
+							<div>
+								<h3 class="text-sm font-serif text-text group-hover:text-text-secondary transition-colors">{profile.full_name}</h3>
+								<p class="text-xs text-text-muted">{profile.title || '—'} &middot; {profile.department || '—'}</p>
 							</div>
-						{/if}
-						<div>
-							<h3 class="text-sm font-display font-semibold text-text group-hover:text-primary-light transition-colors">{profile.full_name}</h3>
-							<p class="text-xs text-text-muted">{profile.title || '—'} · {profile.department || '—'}</p>
 						</div>
-					</div>
-
-					<div class="mt-5 grid grid-cols-4 gap-2 text-center">
-						<div>
-							<p class="text-sm font-bold font-mono text-text">{profile.level ?? 1}</p>
-							<p class="text-xs text-text-muted">Level</p>
+						<div class="flex gap-4 text-center">
+							<div>
+								<p class="text-data text-sm text-text">{profile.level ?? 1}</p>
+								<p class="heading-section">Level</p>
+							</div>
+							<div>
+								<p class="text-data text-sm text-text">{(profile.total_xp ?? 0).toLocaleString()}</p>
+								<p class="heading-section">XP</p>
+							</div>
+							<div>
+								<p class="text-data text-sm text-text">{profile.project_count ?? 0}</p>
+								<p class="heading-section">Projects</p>
+							</div>
+							<div>
+								<p class="text-data text-sm text-text">{profile.streak ?? 0}</p>
+								<p class="heading-section">Streak</p>
+							</div>
 						</div>
-						<div>
-							<p class="text-sm font-bold font-mono text-text">{(profile.total_xp ?? 0).toLocaleString()}</p>
-							<p class="text-xs text-text-muted">XP</p>
-						</div>
-						<div>
-							<p class="text-sm font-bold font-mono text-text">{profile.project_count ?? 0}</p>
-							<p class="text-xs text-text-muted">Projects</p>
-						</div>
-						<div>
-							<p class="text-sm font-bold font-mono text-accent-light">{profile.streak ?? 0}</p>
-							<p class="text-xs text-text-muted">Streak</p>
-						</div>
-					</div>
-				</a>
-			{/each}
-		</div>
-	{:else}
-		<div class="glass-card p-16 text-center">
-			<p class="text-sm text-text-muted">No builders found</p>
-		</div>
-	{/if}
+					</a>
+				{/each}
+			</div>
+		{:else}
+			<div class="py-20 text-center">
+				<p class="text-sm text-text-muted">No builders found</p>
+			</div>
+		{/if}
+	</ScrollReveal>
 </div>

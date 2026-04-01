@@ -1,6 +1,7 @@
 <script lang="ts">
-	import ProjectCard from '$lib/components/ui/ProjectCard.svelte';
-	import AchievementBadge from '$lib/components/ui/AchievementBadge.svelte';
+	import ProjectRow from '$lib/components/ui/ProjectRow.svelte';
+	import AchievementMark from '$lib/components/ui/AchievementMark.svelte';
+	import ScrollReveal from '$lib/components/ui/ScrollReveal.svelte';
 
 	let { data } = $props();
 	const profile = $derived(data.profile);
@@ -18,105 +19,114 @@
 	const earnedIds = $derived(new Set(earnedAchievements.map((ea: any) => ea.achievement_id)));
 </script>
 
-<div class="max-w-3xl mx-auto space-y-8">
-	<a href="/profiles" class="inline-flex items-center gap-1.5 glass-card px-3 py-1.5 text-sm text-text-muted hover:text-text hover:bg-white/[0.06] transition-all duration-200">&larr; Builders</a>
+<div class="max-w-3xl mx-auto px-6 md:px-10 py-10">
+	<a href="/profiles" class="text-sm text-text-muted link-draw inline-block mb-8 animate-fade-up stagger-1">&larr; Builders</a>
 
-	<div class="glass-card p-8">
-		<div class="flex items-center gap-5">
+	<!-- Profile Header -->
+	<ScrollReveal>
+		<div class="flex items-center gap-5 mb-8">
 			{#if profile.avatar_url}
-				<img src={profile.avatar_url} alt={profile.full_name} class="h-20 w-20 rounded-full object-cover ring-2 ring-primary/20 shadow-[0_0_30px_rgba(139,92,246,0.2)]" />
+				<img src={profile.avatar_url} alt={profile.full_name} class="h-20 w-20 rounded-full object-cover border-2 border-text" />
 			{:else}
-				<div class="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center text-3xl font-bold text-primary-light ring-2 ring-primary/20 shadow-[0_0_30px_rgba(139,92,246,0.2)]">
+				<div class="h-20 w-20 rounded-full bg-surface-alt flex items-center justify-center text-3xl font-serif text-text border-2 border-text">
 					{profile.full_name?.charAt(0) ?? '?'}
 				</div>
 			{/if}
 			<div>
-				<h1 class="text-2xl font-display font-bold text-text">{profile.full_name}</h1>
-				<p class="text-sm text-text-muted">{profile.title || '—'} · {profile.department || '—'}</p>
+				<h1 class="font-serif text-2xl text-text">{profile.full_name}</h1>
+				<p class="text-sm text-text-muted">{profile.title || '—'} &middot; {profile.department || '—'}</p>
 				<div class="mt-2 flex items-center gap-3">
-					<span class="tag-primary">Level {profile.level ?? 1}</span>
-					<span class="text-sm font-mono text-text-secondary">{(profile.total_xp ?? 0).toLocaleString()} XP</span>
+					<span class="tag">Lv {profile.level ?? 1}</span>
+					<span class="text-data text-sm text-text-secondary">{(profile.total_xp ?? 0).toLocaleString()} XP</span>
 					{#if profile.streak}
-						<span class="text-sm text-accent-light">🔥 {profile.streak}</span>
+						<span class="text-sm text-text-secondary">{profile.streak} streak</span>
 					{/if}
 				</div>
 			</div>
 		</div>
-	</div>
+	</ScrollReveal>
 
-	<div class="grid grid-cols-4 gap-5">
-		<div class="glass-card p-5 text-center">
-			<p class="text-xl font-bold font-mono text-text">{projects.length}</p>
-			<p class="text-xs text-text-muted">Projects</p>
+	<!-- Stats -->
+	<ScrollReveal delay={80}>
+		<div class="flex items-center gap-0 border-t border-b border-border py-6 mb-8">
+			<div class="flex-1 text-center">
+				<p class="text-data text-xl text-text">{projects.length}</p>
+				<p class="heading-section mt-1">Projects</p>
+			</div>
+			<div class="w-px h-8 bg-border"></div>
+			<div class="flex-1 text-center">
+				<p class="text-data text-xl text-positive">${(totalCostSaved / 1000).toFixed(0)}K</p>
+				<p class="heading-section mt-1">Saved/yr</p>
+			</div>
+			<div class="w-px h-8 bg-border"></div>
+			<div class="flex-1 text-center">
+				<p class="text-data text-xl text-text">{totalHoursSaved}h</p>
+				<p class="heading-section mt-1">Saved/wk</p>
+			</div>
+			<div class="w-px h-8 bg-border"></div>
+			<div class="flex-1 text-center">
+				<p class="text-data text-xl text-text">{earnedAchievements.length}</p>
+				<p class="heading-section mt-1">Badges</p>
+			</div>
 		</div>
-		<div class="glass-card p-5 text-center">
-			<p class="text-xl font-bold font-mono text-success">${(totalCostSaved / 1000).toFixed(0)}k</p>
-			<p class="text-xs text-text-muted">Saved/yr</p>
-		</div>
-		<div class="glass-card p-5 text-center">
-			<p class="text-xl font-bold font-mono text-primary-light">{totalHoursSaved}h</p>
-			<p class="text-xs text-text-muted">Saved/wk</p>
-		</div>
-		<div class="glass-card p-5 text-center">
-			<p class="text-xl font-bold font-mono text-text">{earnedAchievements.length}</p>
-			<p class="text-xs text-text-muted">Badges</p>
-		</div>
-	</div>
+	</ScrollReveal>
 
+	<!-- In Progress -->
 	{#if claimedRequests.length > 0}
-		<div>
-			<h3 class="text-sm font-display font-semibold text-text mb-4">In Progress</h3>
-			<div class="space-y-3">
-				{#each claimedRequests as req}
-					<div class="glass-card p-5">
-						<div class="flex items-center gap-2">
-							<span class="tag-accent">In Progress</span>
-							<h4 class="text-sm font-display font-semibold text-text">{req.title}</h4>
+		<ScrollReveal delay={160}>
+			<div class="mb-8">
+				<h3 class="heading-section mb-4">In Progress</h3>
+				{#each claimedRequests as req, i}
+					<div class="py-4 {i > 0 ? 'border-t border-border' : ''}">
+						<div class="flex items-center gap-2 mb-1">
+							<span class="tag text-[10px]">In Progress</span>
+							<span class="text-sm text-text">{req.title}</span>
 							{#if req.bonus_xp > 0}
-								<span class="tag-primary font-mono">+{req.bonus_xp} XP bounty</span>
+								<span class="text-xs text-data text-text-muted">+{req.bonus_xp} XP</span>
 							{/if}
 						</div>
-						<p class="mt-1 text-sm text-text-secondary">{req.description}</p>
-						<p class="mt-2 text-xs text-text-muted">
+						<p class="text-sm text-text-secondary">{req.description}</p>
+						<p class="text-xs text-text-muted mt-1">
 							Claimed {req.claimed_at ? daysAgo(req.claimed_at) : '?'}d ago
 							{#if req.claimed_at && daysAgo(req.claimed_at) > 14}
-								<span class="text-danger ml-2">Overdue</span>
+								<span class="text-negative ml-1">Overdue</span>
 							{/if}
 						</p>
 					</div>
 				{/each}
 			</div>
-		</div>
+		</ScrollReveal>
 	{/if}
 
+	<!-- Achievements -->
 	{#if allAchievements.length > 0}
-		<div class="glass-card p-6">
-			<h3 class="text-sm font-display font-semibold text-text mb-4">Achievements</h3>
-			<div class="flex flex-wrap gap-4">
-				{#each allAchievements as achievement}
-					<AchievementBadge
-						icon={achievement.icon}
-						name={achievement.name}
-						description={achievement.description}
-						earned={earnedIds.has(achievement.id)}
-					/>
-				{/each}
+		<ScrollReveal delay={240}>
+			<div class="mb-8 border-t border-border pt-8">
+				<h3 class="heading-section mb-4">Achievements</h3>
+				<div class="flex flex-wrap gap-2">
+					{#each allAchievements as achievement}
+						<AchievementMark
+							icon={achievement.icon}
+							name={achievement.name}
+							earned={earnedIds.has(achievement.id)}
+						/>
+					{/each}
+				</div>
 			</div>
-		</div>
+		</ScrollReveal>
 	{/if}
 
-	{#if projects.length > 0}
-		<div>
-			<h3 class="text-sm font-display font-semibold text-text mb-4">Projects</h3>
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+	<!-- Projects -->
+	<ScrollReveal delay={320}>
+		<div class="border-t border-border pt-8">
+			<h3 class="heading-section mb-4">Projects</h3>
+			{#if projects.length > 0}
 				{#each projects as project}
-					<ProjectCard {project} />
+					<ProjectRow {project} />
 				{/each}
-			</div>
+			{:else}
+				<p class="text-sm text-text-muted py-8 text-center">No projects yet</p>
+			{/if}
 		</div>
-	{:else}
-		<div class="glass-card p-12 text-center">
-			<p class="text-sm text-text-muted">No projects yet</p>
-		</div>
-	{/if}
+	</ScrollReveal>
 </div>

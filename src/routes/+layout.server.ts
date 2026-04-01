@@ -1,4 +1,5 @@
 import type { LayoutServerLoad } from './$types';
+import { isDemoDay } from '$lib/server/demo-day';
 
 export const load: LayoutServerLoad = async ({ locals: { safeGetSession }, locals }) => {
 	const { session, user } = await safeGetSession();
@@ -43,5 +44,5 @@ export const load: LayoutServerLoad = async ({ locals: { safeGetSession }, local
 		.single();
 	currentSeason = season;
 
-	return { session, user, profile, currentSeason };
+	return { session, user, profile, currentSeason, isDemoDay: isDemoDay() };
 };

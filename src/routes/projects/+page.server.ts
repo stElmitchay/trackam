@@ -4,6 +4,7 @@ export const load: PageServerLoad = async ({ locals: { supabase }, url }) => {
 	const status = url.searchParams.get('status') || 'all';
 	const sort = url.searchParams.get('sort') || 'newest';
 	const search = url.searchParams.get('q') || '';
+	const type = url.searchParams.get('type') || 'all';
 
 	let query = supabase
 		.from('projects')
@@ -11,6 +12,10 @@ export const load: PageServerLoad = async ({ locals: { supabase }, url }) => {
 
 	if (status !== 'all') {
 		query = query.eq('status', status);
+	}
+
+	if (type !== 'all') {
+		query = query.eq('project_type', type);
 	}
 
 	if (search) {

@@ -1,16 +1,20 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { supabaseAdmin } from '$lib/server/supabase-admin';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals: { session, supabase } }) => {
+export const load: PageServerLoad = async ({ locals: { session, supabase }, url }) => {
 	if (!session) throw redirect(303, '/auth/login');
 
-	const { data: profile } = await supabase
-		.from('profiles')
-		.select('*')
-		.eq('id', session.user.id)
-		.single();
+	const [{ data: profile }, { data: githubConnection }] = await Promise.all([
+		supabase.from('profiles').select('*').eq('id', session.user.id).single(),
+		supabase.from('github_connections').select('github_username, connected_at, scopes').eq('user_id', session.user.id).single()
+	]);
 
-	return { profile };
+	return {
+		profile,
+		githubConnection,
+		githubJustConnected: url.searchParams.get('github') === 'connected'
+	};
 };
 
 export const actions: Actions = {
@@ -65,6 +69,22 @@ export const actions: Actions = {
 			.eq('id', session.user.id);
 
 		if (error) return fail(500, { error: error.message });
+
+		return { success: true };
+	},
+
+	disconnectGithub: async ({ locals: { session } }) => {
+		if (!session) return fail(401, { error: 'Not authenticated' });
+
+		await supabaseAdmin
+			.from('github_connections')
+			.delete()
+			.eq('user_id', session.user.id);
+
+		await supabaseAdmin
+			.from('profiles')
+			.update({ github_username: null, github_connected: false })
+			.eq('id', session.user.id);
 
 		return { success: true };
 	},

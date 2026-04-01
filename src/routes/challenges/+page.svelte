@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ScrollReveal from '$lib/components/ui/ScrollReveal.svelte';
+
 	let { data } = $props();
 	const challenges = $derived(data.challenges);
 	const deptMetrics = $derived(data.deptMetrics);
@@ -26,39 +28,35 @@
 	}
 
 	function formatProgress(value: number, metric: string): string {
-		if (metric === 'cost_saved') return `$${(value / 1000).toFixed(0)}k`;
+		if (metric === 'cost_saved') return `$${(value / 1000).toFixed(0)}K`;
 		return value.toString();
 	}
 </script>
 
-<div class="space-y-8">
-	<div>
-		<h1 class="text-3xl font-display font-bold text-text tracking-tighter">Challenges</h1>
-		<p class="text-sm text-text-muted mt-1">Department vs department competitions</p>
-	</div>
+<div class="px-6 md:px-10 lg:px-16 py-10">
+	<h1 class="heading-page mb-2 animate-fade-up stagger-1">Challenges</h1>
+	<p class="text-sm text-text-muted mb-10 animate-fade-up stagger-2">Department competitions</p>
 
 	{#if challenges.length > 0}
-		<div class="space-y-6">
-			{#each challenges as challenge}
+		<div class="space-y-10">
+			{#each challenges as challenge, ci}
 				{@const remaining = daysUntil(challenge.end_date)}
-				<div class="glass-card p-6 space-y-5">
-					<div class="flex items-start justify-between gap-4">
-						<div>
-							<h2 class="text-lg font-display font-bold text-text">{challenge.title}</h2>
-							{#if challenge.description}
-								<p class="text-sm text-text-secondary mt-1">{challenge.description}</p>
-							{/if}
+				<ScrollReveal delay={ci * 80}>
+					<div class="{ci > 0 ? 'border-t border-border pt-10' : ''}">
+						<div class="flex items-start justify-between gap-4 mb-6">
+							<div>
+								<h2 class="font-serif text-xl text-text">{challenge.title}</h2>
+								{#if challenge.description}
+									<p class="text-body mt-1">{challenge.description}</p>
+								{/if}
+							</div>
+							<div class="text-right flex-shrink-0">
+								<span class="tag">{remaining > 0 ? `${remaining}d left` : 'Ended'}</span>
+								<p class="text-xs text-text-muted mt-1">Target: {formatProgress(challenge.target, challenge.metric)}</p>
+							</div>
 						</div>
-						<div class="text-right flex-shrink-0">
-							<span class="tag-{remaining > 7 ? 'primary' : remaining > 0 ? 'accent' : 'success'}">
-								{remaining > 0 ? `${remaining}d left` : 'Ended'}
-							</span>
-							<p class="text-xs text-text-muted mt-1">Target: {formatProgress(challenge.target, challenge.metric)}</p>
-						</div>
-					</div>
 
-					<div>
-						<p class="text-xs text-text-muted uppercase tracking-wider mb-3">{metricLabel(challenge.metric)}</p>
+						<p class="heading-section mb-4">{metricLabel(challenge.metric)}</p>
 						<div class="space-y-3">
 							{#each departments as dept}
 								{@const progress = getDeptProgress(dept, challenge.metric)}
@@ -67,30 +65,28 @@
 								<div>
 									<div class="flex justify-between mb-1">
 										<span class="text-sm text-text">{dept}</span>
-										<span class="text-xs font-mono {completed ? 'text-success font-bold' : 'text-text-muted'}">
+										<span class="text-xs text-data {completed ? 'text-positive font-semibold' : 'text-text-muted'}">
 											{formatProgress(progress, challenge.metric)} / {formatProgress(challenge.target, challenge.metric)}
 										</span>
 									</div>
-									<div class="h-4 rounded-md bg-white/[0.03] overflow-hidden">
+									<div class="h-3 bg-surface-alt overflow-hidden">
 										<div
-											class="h-full rounded-md transition-all duration-500 {completed
-												? 'bg-gradient-to-r from-success/40 via-success/70 to-success shadow-[0_0_10px_rgba(34,197,94,0.2)]'
-												: 'bg-gradient-to-r from-primary/30 via-primary/60 to-primary-light'}"
-											style="width: {Math.max(2, pct)}%"
+											class="h-full transition-all duration-500 {completed ? 'bg-positive' : 'bg-text/50'}"
+											style="width: {Math.max(1, pct)}%"
 										></div>
 									</div>
 								</div>
 							{/each}
 							{#if departments.length === 0}
-								<p class="text-sm text-text-muted text-center py-4">No department data yet</p>
+								<p class="text-sm text-text-muted text-center py-6">No department data yet</p>
 							{/if}
 						</div>
 					</div>
-				</div>
+				</ScrollReveal>
 			{/each}
 		</div>
 	{:else}
-		<div class="glass-card p-16 text-center">
+		<div class="py-20 text-center">
 			<p class="text-sm text-text-muted">No active challenges right now</p>
 		</div>
 	{/if}

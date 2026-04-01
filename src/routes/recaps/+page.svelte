@@ -1,51 +1,45 @@
 <script lang="ts">
 	let { data } = $props();
 	const season = $derived(data.season);
-	const weeks = $derived(data.weeks);
+	const cycles = $derived(data.cycles ?? []);
 </script>
 
-<div class="space-y-8">
-	<div>
-		<h1 class="text-3xl font-display font-bold text-text tracking-tighter">Weekly Recaps</h1>
-		{#if season}
-			<p class="text-sm text-text-muted mt-1">{season.name} — week-by-week changelog</p>
-		{:else}
-			<p class="text-sm text-text-muted mt-1">No active season</p>
-		{/if}
-	</div>
+<div class="px-6 md:px-10 lg:px-16 py-10">
+	<h1 class="heading-page mb-2 animate-fade-up stagger-1">Demo Recaps</h1>
+	{#if season}
+		<p class="text-sm text-text-muted mb-10 animate-fade-up stagger-2">{season.name}</p>
+	{:else}
+		<p class="text-sm text-text-muted mb-10 animate-fade-up stagger-2">No active season</p>
+	{/if}
 
-	{#if weeks.length > 0}
-		<div class="space-y-4">
-			{#each weeks as week}
-				<a href="/recaps/{week.week}" class="glass-card-hover p-6 block">
-					<div class="flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="h-12 w-12 rounded-lg bg-primary/20 flex items-center justify-center">
-								<span class="text-lg font-bold font-mono text-primary-light">{week.week}</span>
-							</div>
-							<div>
-								<h3 class="text-base font-display font-semibold text-text">Week {week.week}</h3>
-								<p class="text-sm text-text-muted">{week.count} submission{week.count === 1 ? '' : 's'}</p>
-							</div>
+	{#if cycles.length > 0}
+		<div class="animate-fade-up stagger-3">
+			{#each cycles as cycle, i}
+				<a href="/recaps/{cycle.cycle}" class="flex items-center justify-between py-5 group {i > 0 ? 'border-t border-border' : ''} hover:bg-surface-alt transition-colors -mx-4 px-4">
+					<div class="flex items-baseline gap-4">
+						<span class="font-serif text-2xl text-text">{cycle.cycle}</span>
+						<div>
+							<span class="text-sm text-text group-hover:text-text-secondary transition-colors">Demo {cycle.cycle}</span>
+							<span class="text-xs text-text-muted ml-2">{cycle.count} submission{cycle.count === 1 ? '' : 's'}</span>
 						</div>
-						<div class="flex items-center gap-6 text-right">
-							<div>
-								<p class="text-sm font-bold font-mono text-success">${(week.costSaved / 1000).toFixed(0)}k</p>
-								<p class="text-xs text-text-muted">saved</p>
-							</div>
-							{#if week.winner}
-								<div class="max-w-[200px]">
-									<p class="text-sm font-medium text-accent-light truncate">{week.winner.title}</p>
-									<p class="text-xs text-text-muted">by {week.winner.submitterName}</p>
-								</div>
-							{/if}
+					</div>
+					<div class="flex items-center gap-8 text-right">
+						<div>
+							<span class="text-data text-sm text-positive">${(cycle.costSaved / 1000).toFixed(0)}K</span>
+							<span class="heading-section ml-2">saved</span>
 						</div>
+						{#if cycle.winner}
+							<div class="max-w-[200px] hidden md:block">
+								<p class="text-sm text-text truncate">{cycle.winner.title}</p>
+								<p class="text-xs text-text-muted">{cycle.winner.submitterName}</p>
+							</div>
+						{/if}
 					</div>
 				</a>
 			{/each}
 		</div>
 	{:else}
-		<div class="glass-card p-16 text-center">
+		<div class="py-20 text-center">
 			<p class="text-sm text-text-muted">No submissions yet this season</p>
 		</div>
 	{/if}

@@ -1,9 +1,10 @@
 <script lang="ts">
-	import ProjectCard from '$lib/components/ui/ProjectCard.svelte';
+	import ProjectRow from '$lib/components/ui/ProjectRow.svelte';
+	import ScrollReveal from '$lib/components/ui/ScrollReveal.svelte';
 
 	let { data } = $props();
 	const season = $derived(data.season);
-	const week = $derived(data.week);
+	const cycle = $derived(data.cycle);
 	const projects = $derived(data.projects);
 	const stats = $derived(data.stats);
 	const topTools = $derived(data.topTools);
@@ -12,85 +13,92 @@
 	const maxToolCount = $derived(topTools.length > 0 ? topTools[0].count : 1);
 </script>
 
-<div class="space-y-8">
-	<a href="/recaps" class="inline-flex items-center gap-1.5 glass-card px-3 py-1.5 text-sm text-text-muted hover:text-text hover:bg-white/[0.06] transition-all duration-200">&larr; Recaps</a>
+<div class="px-6 md:px-10 lg:px-16 py-10">
+	<a href="/recaps" class="text-sm text-text-muted link-draw inline-block mb-8 animate-fade-up stagger-1">&larr; Recaps</a>
 
-	<div>
-		<h1 class="text-3xl font-display font-bold text-text tracking-tighter">Week {week}</h1>
-		<p class="text-sm text-text-muted mt-1">{season.name}</p>
-	</div>
+	<h1 class="heading-page mb-2 animate-fade-up stagger-1">Demo {cycle}</h1>
+	<p class="text-sm text-text-muted mb-8 animate-fade-up stagger-2">{season.name}</p>
 
 	<!-- Stats -->
-	<div class="grid grid-cols-4 gap-5">
-		<div class="glass-card p-5 text-center">
-			<p class="text-xl font-bold font-mono text-text">{stats.submissions}</p>
-			<p class="text-xs text-text-muted">Submissions</p>
+	<ScrollReveal>
+		<div class="flex items-center gap-0 border-t border-b border-border py-6 mb-10">
+			<div class="flex-1 text-center">
+				<p class="text-data text-2xl text-text">{stats.submissions}</p>
+				<p class="heading-section mt-1">Submissions</p>
+			</div>
+			<div class="w-px h-8 bg-border"></div>
+			<div class="flex-1 text-center">
+				<p class="text-data text-2xl text-positive">${(stats.totalCost / 1000).toFixed(0)}K</p>
+				<p class="heading-section mt-1">Cost Saved</p>
+			</div>
+			<div class="w-px h-8 bg-border"></div>
+			<div class="flex-1 text-center">
+				<p class="text-data text-2xl text-text">{stats.totalHours}h</p>
+				<p class="heading-section mt-1">Hours Saved</p>
+			</div>
+			<div class="w-px h-8 bg-border"></div>
+			<div class="flex-1 text-center">
+				<p class="text-data text-2xl text-text">{stats.departments}</p>
+				<p class="heading-section mt-1">Departments</p>
+			</div>
 		</div>
-		<div class="glass-card p-5 text-center">
-			<p class="text-xl font-bold font-mono text-success">${(stats.totalCost / 1000).toFixed(0)}k</p>
-			<p class="text-xs text-text-muted">Cost Saved</p>
-		</div>
-		<div class="glass-card p-5 text-center">
-			<p class="text-xl font-bold font-mono text-primary-light">{stats.totalHours}h</p>
-			<p class="text-xs text-text-muted">Hours Saved</p>
-		</div>
-		<div class="glass-card p-5 text-center">
-			<p class="text-xl font-bold font-mono text-text">{stats.departments}</p>
-			<p class="text-xs text-text-muted">Departments</p>
-		</div>
-	</div>
+	</ScrollReveal>
 
-	<!-- Winner Spotlight -->
+	<!-- Winner -->
 	{#if winner}
-		<div class="glass-card p-8 ring-1 ring-accent/30 shadow-[0_0_40px_rgba(245,158,11,0.1)]">
-			<div class="flex items-center gap-2 mb-4">
-				<span class="tag-accent">Week Winner</span>
+		<ScrollReveal>
+			<div class="border-l-2 border-text pl-6 mb-10">
+				<p class="heading-section mb-2">Cycle Winner</p>
+				<h2 class="font-serif text-xl text-text">{winner.title}</h2>
+				<div class="mt-2 flex items-center gap-3">
+					{#if winner.submitter?.avatar_url}
+						<img src={winner.submitter.avatar_url} alt={winner.submitter.full_name} class="h-5 w-5 rounded-full object-cover" />
+					{:else}
+						<div class="h-5 w-5 rounded-full bg-surface-alt flex items-center justify-center text-[10px] font-medium text-text">
+							{winner.submitter?.full_name?.charAt(0) ?? '?'}
+						</div>
+					{/if}
+					<span class="text-sm text-text-secondary">{winner.submitter?.full_name ?? 'Unknown'}</span>
+					<span class="text-data text-sm text-positive">${((winner.annual_cost_replaced ?? 0) / 1000).toFixed(0)}K saved/yr</span>
+				</div>
+				<p class="mt-3 text-body">{winner.description}</p>
 			</div>
-			<h2 class="text-xl font-display font-bold text-text">{winner.title}</h2>
-			<div class="mt-2 flex items-center gap-3">
-				{#if winner.submitter?.avatar_url}
-					<img src={winner.submitter.avatar_url} alt={winner.submitter.full_name} class="h-6 w-6 rounded-full object-cover" />
-				{:else}
-					<div class="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary-light">
-						{winner.submitter?.full_name?.charAt(0) ?? '?'}
-					</div>
-				{/if}
-				<span class="text-sm text-text-secondary">{winner.submitter?.full_name ?? 'Unknown'}</span>
-				<span class="text-sm font-bold font-mono text-success">${((winner.annual_cost_replaced ?? 0) / 1000).toFixed(0)}k saved/yr</span>
-			</div>
-			<p class="mt-3 text-sm text-text-secondary leading-relaxed">{winner.description}</p>
-		</div>
+		</ScrollReveal>
 	{/if}
 
 	<!-- Top AI Tools -->
 	{#if topTools.length > 0}
-		<div class="glass-card p-6">
-			<h3 class="text-sm font-display font-semibold text-text mb-4">Top AI Tools This Week</h3>
-			<div class="space-y-3">
-				{#each topTools as tool}
-					<div class="flex items-center gap-3">
-						<span class="text-sm text-text-secondary w-24 text-right truncate">{tool.name}</span>
-						<div class="flex-1 h-6 rounded-md overflow-hidden bg-white/[0.03]">
-							<div
-								class="h-full rounded-md bg-gradient-to-r from-primary to-primary-light flex items-center px-2"
-								style="width: {(tool.count / maxToolCount) * 100}%"
-							>
-								<span class="text-xs font-mono font-bold text-white">{tool.count}</span>
+		<ScrollReveal>
+			<div class="mb-10">
+				<h3 class="heading-section mb-4">Top AI Tools</h3>
+				<div class="space-y-2.5">
+					{#each topTools as tool}
+						<div class="flex items-center gap-3">
+							<span class="text-sm text-text w-28 text-right truncate flex-shrink-0">{tool.name}</span>
+							<div class="flex-1 h-5 bg-surface-alt overflow-hidden">
+								<div
+									class="h-full bg-text transition-all duration-300"
+									style="width: {(tool.count / maxToolCount) * 100}%"
+								></div>
 							</div>
+							<span class="text-xs text-data text-text-muted w-6">{tool.count}</span>
 						</div>
-					</div>
-				{/each}
+					{/each}
+				</div>
 			</div>
-		</div>
+		</ScrollReveal>
 	{/if}
 
 	<!-- All Submissions -->
-	<div>
-		<h3 class="text-sm font-display font-semibold text-text mb-4">All Submissions</h3>
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+	<ScrollReveal>
+		<div class="border-t border-border pt-8">
+			<div class="flex items-center justify-between mb-4">
+				<h3 class="heading-section">All Submissions</h3>
+				<a href="/recaps/{cycle}/newsletter" class="text-sm text-text-secondary link-draw">View Newsletter &rarr;</a>
+			</div>
 			{#each projects as project}
-				<ProjectCard {project} />
+				<ProjectRow {project} />
 			{/each}
 		</div>
-	</div>
+	</ScrollReveal>
 </div>
