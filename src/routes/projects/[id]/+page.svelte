@@ -10,6 +10,7 @@
 	const nextSteps = $derived(data.nextSteps);
 	const dpgEvaluation = $derived(data.dpgEvaluation);
 	const ideaEvaluation = $derived(data.ideaEvaluation);
+	const synthesis = $derived(data.synthesis);
 	const repoInfo = $derived(data.repoInfo);
 	const contributors = $derived(data.contributors);
 	const userId = $derived(data.userId);
@@ -73,6 +74,45 @@
 	</div>
 
 	<p class="text-body max-w-3xl mb-12 animate-fade-up stagger-2">{project.description}</p>
+
+	<!-- Analysis Summary (Synthesis) -->
+	{#if synthesis}
+		<ScrollReveal>
+			<div class="border-t border-border pt-10 mb-12">
+				<h3 class="heading-section mb-6">Analysis Summary</h3>
+				<p class="font-serif italic text-2xl md:text-3xl text-text leading-snug max-w-4xl mb-10">"{synthesis.summary}"</p>
+
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+					{#if synthesis.strengths?.length}
+						<div>
+							<h4 class="heading-section mb-4 text-positive">What's Working</h4>
+							<ul class="space-y-3">
+								{#each synthesis.strengths as item}
+									<li class="text-base text-text-secondary leading-relaxed flex gap-3">
+										<span class="text-positive shrink-0 mt-1">✓</span>
+										<span>{item}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if synthesis.critical_gaps?.length}
+						<div>
+							<h4 class="heading-section mb-4 text-negative">Critical Gaps</h4>
+							<ul class="space-y-3">
+								{#each synthesis.critical_gaps as item}
+									<li class="text-base text-text-secondary leading-relaxed flex gap-3">
+										<span class="text-negative shrink-0 mt-1">!</span>
+										<span>{item}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</div>
+			</div>
+		</ScrollReveal>
+	{/if}
 
 	<!-- Metrics Row -->
 	<ScrollReveal>
@@ -287,26 +327,29 @@
 								{/if}
 							</div>
 						</div>
-						<span class="text-sm text-data text-text-secondary shrink-0 mt-1">~{step.estimated_xp} XP</span>
+						<span class="text-sm text-data text-text-secondary shrink-0 mt-1.5">~{step.estimated_xp} XP</span>
 						{#if step.implementation_status === 'implemented' && step.pr_url}
-							<a href={step.pr_url} target="_blank" rel="noopener" class="text-sm text-text link-draw shrink-0 mt-1">View PR</a>
+							<a href={step.pr_url} target="_blank" rel="noopener" class="inline-flex items-center px-3 py-1.5 border border-border-strong text-sm text-text hover:bg-surface-alt transition-colors shrink-0 mt-0.5">View PR</a>
 						{:else if step.implementation_status === 'in_progress' || implementing === step.id}
-							<span class="text-sm text-text-muted shrink-0 mt-1">Implementing...</span>
+							<span class="inline-flex items-center gap-2 px-3 py-1.5 border border-border text-sm text-text-muted shrink-0 mt-0.5">
+								<span class="h-1.5 w-1.5 rounded-full bg-text-muted animate-pulse"></span>
+								Implementing
+							</span>
 						{:else if step.implementation_status === 'failed'}
 							<form method="POST" action="?/implement" use:enhance={() => {
 								implementing = step.id;
 								return async ({ update }) => { implementing = null; await update(); };
-							}}>
+							}} class="shrink-0 mt-0.5">
 								<input type="hidden" name="step_id" value={step.id} />
-								<button type="submit" class="text-sm text-negative link-draw shrink-0">Retry</button>
+								<button type="submit" class="inline-flex items-center px-3 py-1.5 border border-negative text-sm text-negative hover:bg-negative/10 transition-colors">Retry</button>
 							</form>
 						{:else if isOwner && project.repo_url}
 							<form method="POST" action="?/implement" use:enhance={() => {
 								implementing = step.id;
 								return async ({ update }) => { implementing = null; await update(); };
-							}}>
+							}} class="shrink-0 mt-0.5">
 								<input type="hidden" name="step_id" value={step.id} />
-								<button type="submit" class="text-sm text-text link-draw shrink-0">Implement</button>
+								<button type="submit" class="inline-flex items-center px-3 py-1.5 bg-text text-bg text-sm font-semibold hover:opacity-90 transition-opacity">Implement</button>
 							</form>
 						{/if}
 					</div>
@@ -436,13 +479,16 @@
 	<!-- Action Links -->
 	{#if project.demo_url || project.repo_url}
 		<ScrollReveal>
-			<div class="flex flex-wrap gap-4 mb-10">
-				{#if project.demo_url}
-					<a href={project.demo_url} target="_blank" rel="noopener" class="btn-primary px-5 py-2 text-sm">View Demo</a>
-				{/if}
-				{#if project.repo_url}
-					<a href={project.repo_url} target="_blank" rel="noopener" class="btn-secondary px-5 py-2 text-sm">Source Code</a>
-				{/if}
+			<div class="mb-12">
+				<h3 class="heading-section mb-4">Actions</h3>
+				<div class="flex flex-wrap gap-4">
+					{#if project.demo_url}
+						<a href={project.demo_url} target="_blank" rel="noopener" class="btn-primary">View Demo</a>
+					{/if}
+					{#if project.repo_url}
+						<a href={project.repo_url} target="_blank" rel="noopener" class="btn-secondary">Source Code</a>
+					{/if}
+				</div>
 			</div>
 		</ScrollReveal>
 	{/if}
@@ -473,7 +519,7 @@
 					<span class="text-sm text-text-muted">Adopted</span>
 				{:else}
 					<form method="POST" action="?/adopt" use:enhance>
-						<button type="submit" class="btn-primary px-5 py-2 text-sm">We use this</button>
+						<button type="submit" class="btn-primary">We use this</button>
 					</form>
 				{/if}
 			{/if}
@@ -534,7 +580,7 @@
 						required
 					></textarea>
 					<div class="mt-3 flex justify-end">
-						<button type="submit" disabled={submittingComment || !commentText.trim()} class="btn-primary px-5 py-2 text-sm">
+						<button type="submit" disabled={submittingComment || !commentText.trim()} class="btn-primary">
 							{submittingComment ? 'Posting...' : 'Post'}
 						</button>
 					</div>

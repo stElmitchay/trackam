@@ -46,7 +46,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, session
 
 	const latestAnalysisPromise = supabase
 		.from('ai_analyses')
-		.select('dpg_evaluation, idea_evaluation')
+		.select('dpg_evaluation, idea_evaluation, synthesis')
 		.eq('project_id', params.id)
 		.order('analyzed_at', { ascending: false })
 		.limit(1)
@@ -106,6 +106,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, session
 		nextSteps: nextStepsResult.data ?? [],
 		dpgEvaluation: analysisResult.data?.dpg_evaluation ?? null,
 		ideaEvaluation: analysisResult.data?.idea_evaluation ?? null,
+		synthesis: analysisResult.data?.synthesis ?? null,
 		repoInfo,
 		contributors,
 		userId: session?.user?.id ?? null,

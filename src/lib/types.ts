@@ -171,6 +171,7 @@ export interface AIAnalysis {
 	languages: Record<string, number>;
 	dpg_evaluation?: DPGEvaluation;
 	idea_evaluation?: IdeaEvaluation;
+	synthesis?: SynthesisResult;
 	analyzed_at: string;
 }
 
@@ -206,6 +207,19 @@ export interface NextStep {
 	implementation_status: 'pending' | 'in_progress' | 'implemented' | 'failed';
 	pr_url?: string;
 	created_at: string;
+}
+
+export interface SynthesisResult {
+	summary: string;
+	strengths: string[];
+	critical_gaps: string[];
+	priority_milestones: Array<{
+		title: string;
+		description: string;
+		category: MilestoneCategory;
+		estimated_xp: number;
+		rationale: string;
+	}>;
 }
 
 export interface IdeaEvaluation {
