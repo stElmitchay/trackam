@@ -9,6 +9,8 @@
 	const adoptions = $derived(data.adoptions);
 	const nextSteps = $derived(data.nextSteps);
 	const dpgEvaluation = $derived(data.dpgEvaluation);
+	const ideaEvaluation = $derived(data.ideaEvaluation);
+	const synthesis = $derived(data.synthesis);
 	const repoInfo = $derived(data.repoInfo);
 	const contributors = $derived(data.contributors);
 	const userId = $derived(data.userId);
@@ -73,6 +75,45 @@
 
 	<p class="text-body max-w-3xl mb-12 animate-fade-up stagger-2">{project.description}</p>
 
+	<!-- Analysis Summary (Synthesis) -->
+	{#if synthesis}
+		<ScrollReveal>
+			<div class="border-t border-border pt-10 mb-12">
+				<h3 class="heading-section mb-6">Analysis Summary</h3>
+				<p class="font-serif italic text-2xl md:text-3xl text-text leading-snug max-w-4xl mb-10">"{synthesis.summary}"</p>
+
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+					{#if synthesis.strengths?.length}
+						<div>
+							<h4 class="heading-section mb-4 text-positive">What's Working</h4>
+							<ul class="space-y-3">
+								{#each synthesis.strengths as item}
+									<li class="text-base text-text-secondary leading-relaxed flex gap-3">
+										<span class="text-positive shrink-0 mt-1">✓</span>
+										<span>{item}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if synthesis.critical_gaps?.length}
+						<div>
+							<h4 class="heading-section mb-4 text-negative">Critical Gaps</h4>
+							<ul class="space-y-3">
+								{#each synthesis.critical_gaps as item}
+									<li class="text-base text-text-secondary leading-relaxed flex gap-3">
+										<span class="text-negative shrink-0 mt-1">!</span>
+										<span>{item}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</div>
+			</div>
+		</ScrollReveal>
+	{/if}
+
 	<!-- Metrics Row -->
 	<ScrollReveal>
 		<div class="flex items-center gap-0 border-t border-b border-border py-8 mb-12">
@@ -93,31 +134,112 @@
 		</div>
 	</ScrollReveal>
 
-	<!-- 1+2. Video + Repository (side by side) -->
-	{#if project.video_url || repoInfo}
+	<!-- Idea Evaluation -->
+	{#if ideaEvaluation}
+		<ScrollReveal>
+			<div class="border-t border-border pt-10 mb-12">
+				<div class="flex items-baseline justify-between mb-6">
+					<h3 class="heading-section">Idea Evaluation</h3>
+					<span class="text-data text-2xl text-text">{ideaEvaluation.overall_score}<span class="text-sm text-text-muted">/100</span></span>
+				</div>
+
+				<p class="font-serif italic text-xl text-text mb-8 max-w-3xl leading-snug">"{ideaEvaluation.one_line_verdict}"</p>
+
+				<!-- Score breakdown -->
+				<div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+					{#each Object.entries(ideaEvaluation.scores) as [key, score] (key)}
+						{@const numScore = score as number}
+						<div class="border border-border p-4">
+							<div class="flex items-baseline justify-between mb-2">
+								<span class="heading-section">{key.replace(/_/g, ' ')}</span>
+								<span class="text-data text-base text-text">{numScore}<span class="text-xs text-text-muted">/10</span></span>
+							</div>
+							<div class="h-1 bg-surface-alt overflow-hidden">
+								<div class="h-full bg-text" style="width: {numScore * 10}%"></div>
+							</div>
+						</div>
+					{/each}
+				</div>
+
+				<!-- Strengths / Concerns / Recommendations -->
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+					{#if ideaEvaluation.strengths?.length}
+						<div>
+							<h4 class="heading-section mb-3 text-positive">Strengths</h4>
+							<ul class="space-y-2">
+								{#each ideaEvaluation.strengths as item}
+									<li class="text-sm text-text-secondary leading-relaxed flex gap-2">
+										<span class="text-positive shrink-0">+</span>
+										<span>{item}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if ideaEvaluation.concerns?.length}
+						<div>
+							<h4 class="heading-section mb-3 text-negative">Concerns</h4>
+							<ul class="space-y-2">
+								{#each ideaEvaluation.concerns as item}
+									<li class="text-sm text-text-secondary leading-relaxed flex gap-2">
+										<span class="text-negative shrink-0">−</span>
+										<span>{item}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if ideaEvaluation.recommendations?.length}
+						<div>
+							<h4 class="heading-section mb-3">Recommendations</h4>
+							<ul class="space-y-2">
+								{#each ideaEvaluation.recommendations as item}
+									<li class="text-sm text-text-secondary leading-relaxed flex gap-2">
+										<span class="text-text-muted shrink-0">→</span>
+										<span>{item}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</div>
+			</div>
+		</ScrollReveal>
+	{/if}
+
+	<!-- 1+2. Demo + Repository (side by side) -->
+	{#if project.demo_url || repoInfo}
 		<ScrollReveal>
 			<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-				{#if project.video_url}
-					{@const embedUrl = getEmbedUrl(project.video_url)}
+				{#if project.demo_url}
+					{@const embedUrl = getEmbedUrl(project.demo_url)}
 					<div>
-						<h3 class="heading-section mb-4">Demo Video</h3>
+						<h3 class="heading-section mb-4">Demo</h3>
 						{#if embedUrl}
 							<div class="aspect-video border border-border overflow-hidden">
-								<iframe src={embedUrl} title="Demo video" class="w-full h-full" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+								<iframe src={embedUrl} title="Demo" class="w-full h-full" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
 							</div>
 						{:else}
-							<a href={project.video_url} target="_blank" rel="noopener" class="text-sm text-text link-draw">Watch Video &rarr;</a>
+							<a href={project.demo_url} target="_blank" rel="noopener" class="block aspect-video border border-border bg-surface-alt hover:bg-surface-hover transition-colors flex items-center justify-center group">
+								<span class="font-serif text-2xl italic text-text group-hover:text-text-secondary transition-colors">Open Demo &rarr;</span>
+							</a>
 						{/if}
 					</div>
 				{/if}
 
 				{#if repoInfo}
 					<div>
-						<h3 class="heading-section mb-4 flex items-center gap-2">
-							<svg class="h-4 w-4 text-text-muted" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+						<a
+							href={project.repo_url}
+							target="_blank"
+							rel="noopener"
+							class="heading-section mb-4 flex items-center gap-2 text-text hover:text-text-secondary transition-colors"
+						>
+							<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
 							Repository
-						</h3>
-						<div class="border border-border p-4 space-y-3">
+							<span class="text-text-muted ml-1">&rarr;</span>
+						</a>
+						<a href={project.repo_url} target="_blank" rel="noopener" class="block border border-border p-4 space-y-3 hover:bg-surface-alt hover:border-border-strong transition-colors">
 							<div class="grid grid-cols-2 gap-3">
 								<div>
 									<span class="text-data text-lg text-text">{repoInfo.stargazers_count}</span>
@@ -154,7 +276,7 @@
 								</div>
 							{/if}
 							<p class="text-xs text-text-muted pt-2 border-t border-border">Updated {new Date(repoInfo.updated_at).toLocaleDateString()}</p>
-						</div>
+						</a>
 					</div>
 				{/if}
 			</div>
@@ -213,26 +335,29 @@
 								{/if}
 							</div>
 						</div>
-						<span class="text-sm text-data text-text-secondary shrink-0 mt-1">~{step.estimated_xp} XP</span>
+						<span class="text-sm text-data text-text-secondary shrink-0 mt-1.5">~{step.estimated_xp} XP</span>
 						{#if step.implementation_status === 'implemented' && step.pr_url}
-							<a href={step.pr_url} target="_blank" rel="noopener" class="text-sm text-text link-draw shrink-0 mt-1">View PR</a>
+							<a href={step.pr_url} target="_blank" rel="noopener" class="inline-flex items-center px-3 py-1.5 border border-border-strong text-sm text-text hover:bg-surface-alt transition-colors shrink-0 mt-0.5">View PR</a>
 						{:else if step.implementation_status === 'in_progress' || implementing === step.id}
-							<span class="text-sm text-text-muted shrink-0 mt-1">Implementing...</span>
+							<span class="inline-flex items-center gap-2 px-3 py-1.5 border border-border text-sm text-text-muted shrink-0 mt-0.5">
+								<span class="h-1.5 w-1.5 rounded-full bg-text-muted animate-pulse"></span>
+								Implementing
+							</span>
 						{:else if step.implementation_status === 'failed'}
 							<form method="POST" action="?/implement" use:enhance={() => {
 								implementing = step.id;
 								return async ({ update }) => { implementing = null; await update(); };
-							}}>
+							}} class="shrink-0 mt-0.5">
 								<input type="hidden" name="step_id" value={step.id} />
-								<button type="submit" class="text-sm text-negative link-draw shrink-0">Retry</button>
+								<button type="submit" class="inline-flex items-center px-3 py-1.5 border border-negative text-sm text-negative hover:bg-negative/10 transition-colors">Retry</button>
 							</form>
 						{:else if isOwner && project.repo_url}
 							<form method="POST" action="?/implement" use:enhance={() => {
 								implementing = step.id;
 								return async ({ update }) => { implementing = null; await update(); };
-							}}>
+							}} class="shrink-0 mt-0.5">
 								<input type="hidden" name="step_id" value={step.id} />
-								<button type="submit" class="text-sm text-text link-draw shrink-0">Implement</button>
+								<button type="submit" class="inline-flex items-center px-3 py-1.5 bg-text text-bg text-sm font-semibold hover:opacity-90 transition-opacity">Implement</button>
 							</form>
 						{/if}
 					</div>
@@ -359,52 +484,28 @@
 		</ScrollReveal>
 	{/if}
 
-	<!-- Action Links -->
-	{#if project.demo_url || project.repo_url}
+
+	<!-- Adoption (only when teams have adopted) -->
+	{#if adoptions.length > 0}
 		<ScrollReveal>
-			<div class="flex flex-wrap gap-4 mb-10">
-				{#if project.demo_url}
-					<a href={project.demo_url} target="_blank" rel="noopener" class="btn-primary px-5 py-2 text-sm">View Demo</a>
-				{/if}
-				{#if project.repo_url}
-					<a href={project.repo_url} target="_blank" rel="noopener" class="btn-secondary px-5 py-2 text-sm">Source Code</a>
-				{/if}
+			<div class="flex items-center gap-4 py-8 border-t border-border mb-12">
+				<div class="flex -space-x-2">
+					{#each adoptions.slice(0, 8) as adoption}
+						{#if adoption.adopter?.avatar_url}
+							<img src={adoption.adopter.avatar_url} alt={adoption.adopter.full_name} class="h-8 w-8 rounded-full object-cover border-2 border-bg" />
+						{:else}
+							<div class="h-8 w-8 rounded-full bg-surface-alt flex items-center justify-center text-xs font-medium text-text border-2 border-bg">
+								{adoption.adopter?.full_name?.charAt(0) ?? '?'}
+							</div>
+						{/if}
+					{/each}
+				</div>
+				<span class="text-base text-text-secondary">
+					{adoptions.length} team{adoptions.length === 1 ? '' : 's'} using this
+				</span>
 			</div>
 		</ScrollReveal>
 	{/if}
-
-	<!-- Adoption -->
-	<ScrollReveal>
-		<div class="flex items-center justify-between py-8 border-t border-border mb-12">
-			<div class="flex items-center gap-4">
-				{#if adoptions.length > 0}
-					<div class="flex -space-x-2">
-						{#each adoptions.slice(0, 8) as adoption}
-							{#if adoption.adopter?.avatar_url}
-								<img src={adoption.adopter.avatar_url} alt={adoption.adopter.full_name} class="h-8 w-8 rounded-full object-cover border-2 border-bg" />
-							{:else}
-								<div class="h-8 w-8 rounded-full bg-surface-alt flex items-center justify-center text-xs font-medium text-text border-2 border-bg">
-									{adoption.adopter?.full_name?.charAt(0) ?? '?'}
-								</div>
-							{/if}
-						{/each}
-					</div>
-				{/if}
-				<span class="text-base text-text-secondary">
-					{adoptions.length === 0 ? 'No teams using this yet' : `${adoptions.length} team${adoptions.length === 1 ? '' : 's'} using this`}
-				</span>
-			</div>
-			{#if userId}
-				{#if hasAdopted}
-					<span class="text-sm text-text-muted">Adopted</span>
-				{:else}
-					<form method="POST" action="?/adopt" use:enhance>
-						<button type="submit" class="btn-primary px-5 py-2 text-sm">We use this</button>
-					</form>
-				{/if}
-			{/if}
-		</div>
-	</ScrollReveal>
 
 	<!-- Team -->
 	{#if teamMembers.length > 0}
@@ -460,7 +561,7 @@
 						required
 					></textarea>
 					<div class="mt-3 flex justify-end">
-						<button type="submit" disabled={submittingComment || !commentText.trim()} class="btn-primary px-5 py-2 text-sm">
+						<button type="submit" disabled={submittingComment || !commentText.trim()} class="btn-primary">
 							{submittingComment ? 'Posting...' : 'Post'}
 						</button>
 					</div>

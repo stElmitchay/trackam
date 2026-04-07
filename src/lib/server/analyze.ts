@@ -2,6 +2,8 @@ import { supabaseAdmin } from './supabase-admin';
 import { parseRepoUrl, getRepoInfo, getCommitsSince, getReadmeContent, getLicenseInfo } from './github';
 import { analyzeRepoProgress } from './claude';
 import { evaluateDPGCompliance } from './dpg';
+import { evaluateIdea } from './idea-eval';
+import { synthesizeEvaluations } from './synthesis';
 import { getCurrentDemoCycle } from './demo-cycle';
 
 /**
@@ -86,6 +88,25 @@ export async function runProjectAnalysis(projectId: string, userId: string): Pro
 		// DPG failed silently
 	}
 
+	// Idea evaluation (optional, don't fail the whole analysis)
+	let ideaEvaluation = null;
+	try {
+		ideaEvaluation = await evaluateIdea({
+			projectContext: {
+				title: project.title,
+				description: project.description,
+				problem_statement: project.problem_statement,
+				solution_summary: project.solution_summary,
+				project_goals: project.project_goals,
+				target_audience: project.target_audience,
+				tech_stack: project.tech_stack,
+				project_type: project.project_type
+			}
+		});
+	} catch {
+		// Idea eval failed silently
+	}
+
 	// Run Claude analysis with pending steps for fulfillment detection
 	const analysis = await analyzeRepoProgress({
 		commits,
@@ -100,6 +121,24 @@ export async function runProjectAnalysis(projectId: string, userId: string): Pro
 		},
 		dpgGaps
 	});
+
+	// Synthesis pass: combine all three evaluations into unified summary + priority milestones
+	let synthesis = null;
+	try {
+		synthesis = await synthesizeEvaluations({
+			ideaEval: ideaEvaluation,
+			dpgEval: dpgEvaluation,
+			progressAnalysis: analysis,
+			projectContext: {
+				title: project.title,
+				description: project.description,
+				problem_statement: project.problem_statement,
+				solution_summary: project.solution_summary
+			}
+		});
+	} catch {
+		// Synthesis failed silently — fall back to raw progress next_steps
+	}
 
 	// Get season + demo cycle
 	const { data: season } = await supabaseAdmin
@@ -124,7 +163,9 @@ export async function runProjectAnalysis(projectId: string, userId: string): Pro
 		commit_count: commits.length,
 		lines_changed: commits.reduce((sum, c) => sum + c.additions + c.deletions, 0),
 		languages: repoInfo.languages,
-		dpg_evaluation: dpgEvaluation
+		dpg_evaluation: dpgEvaluation,
+		idea_evaluation: ideaEvaluation,
+		synthesis: synthesis
 	}, { onConflict: 'project_id,demo_cycle,season' }).select('id').single();
 
 	const analysisId = storedAnalysis?.id;
@@ -165,15 +206,25 @@ export async function runProjectAnalysis(projectId: string, userId: string): Pro
 		}
 	}
 
-	// Store new next steps (clear old unfulfilled AI-generated ones first)
-	if (analysis.next_steps?.length) {
+	// Prefer synthesis priority milestones over raw progress next_steps
+	const milestonesToInsert = synthesis?.priority_milestones?.length
+		? synthesis.priority_milestones.map(m => ({
+				title: m.title,
+				description: m.rationale ? `${m.description}\n\n— ${m.rationale}` : m.description,
+				category: m.category,
+				estimated_xp: m.estimated_xp
+		  }))
+		: analysis.next_steps;
+
+	// Store next steps (clear old unfulfilled AI-generated ones first)
+	if (milestonesToInsert?.length) {
 		await supabaseAdmin.from('next_steps')
 			.delete()
 			.eq('project_id', projectId)
 			.eq('completed', false)
 			.eq('source', 'ai');
 
-		for (const s of analysis.next_steps) {
+		for (const s of milestonesToInsert) {
 			await supabaseAdmin.from('next_steps').insert({
 				project_id: projectId,
 				analysis_id: analysisId,
