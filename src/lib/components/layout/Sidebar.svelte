@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import Logo from '$lib/components/ui/Logo.svelte';
 	import type { Season, Profile } from '$lib/types';
 
 	let { open = true, season = null, user = null, isDemoDay = false }: {
@@ -25,11 +26,9 @@
 		: 'w-0 overflow-hidden'}"
 >
 	<!-- Logo -->
-	<div class="flex items-center gap-3 px-5 py-6">
-		<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark text-white font-bold text-sm shadow-[0_0_20px_rgba(139,92,246,0.3)]">
-			S
-		</div>
-		<span class="text-lg font-display font-semibold tracking-tight text-text">Raydr</span>
+	<div class="flex items-center gap-3 px-5 py-6 text-text">
+		<Logo size={28} strokeWidth={2.5} />
+		<span class="text-lg font-display font-semibold tracking-tight">Raydr</span>
 	</div>
 
 	<!-- Nav -->

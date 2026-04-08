@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import Logo from '$lib/components/ui/Logo.svelte';
 
 	let { data } = $props();
 
@@ -157,8 +158,10 @@
 
 <div class="flex min-h-[80vh] items-center justify-center px-6">
 	<div class="w-full max-w-sm">
-		<div class="text-center mb-10">
-			<span class="font-serif text-5xl italic text-text">R</span>
+		<div class="text-center mb-10 text-text">
+			<div class="flex justify-center">
+				<Logo size={56} strokeWidth={2} />
+			</div>
 			<h1 class="mt-4 heading-page">Raydr</h1>
 			<p class="mt-2 text-sm text-text-secondary">{subtitle}</p>
 		</div>
