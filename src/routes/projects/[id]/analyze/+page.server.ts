@@ -56,10 +56,11 @@ export const actions: Actions = {
 
 		try {
 			await runProjectAnalysis(params.id, session.user.id);
-			return { success: true };
 		} catch (err: any) {
 			return fail(500, { error: `Analysis failed: ${err.message}` });
 		}
+
+		throw redirect(303, `/projects/${params.id}`);
 	},
 
 	awardXp: async ({ params, request, locals: { supabase, session } }) => {

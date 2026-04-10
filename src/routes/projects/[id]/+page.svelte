@@ -377,12 +377,24 @@
 	<!-- 3. Milestones (Always visible) -->
 	<ScrollReveal>
 		<div class="border-t border-border pt-10 mb-12">
-			<h3 class="heading-section mb-6">
-				Milestones
-				{#if nextSteps.length > 0}
-					<span class="text-text-muted normal-case text-xs tracking-normal ml-3 font-normal">({fulfilledSteps.length}/{nextSteps.length} completed)</span>
+			<div class="flex items-baseline justify-between mb-6">
+				<h3 class="heading-section">
+					Milestones
+					{#if nextSteps.length > 0}
+						<span class="text-text-muted normal-case text-xs tracking-normal ml-3 font-normal">({fulfilledSteps.length}/{nextSteps.length} completed)</span>
+					{/if}
+				</h3>
+				{#if isOwner && githubConnected && project.repo_url && project.analysis_status !== 'analyzing'}
+					<form method="POST" action="?/retryAnalysis" use:enhance={() => {
+						retryingAnalysis = true;
+						return async ({ update }) => { retryingAnalysis = false; await update(); };
+					}}>
+						<button type="submit" disabled={retryingAnalysis} class="text-sm text-text-secondary link-draw">
+							{retryingAnalysis ? 'Analyzing…' : 'Run Analysis'}
+						</button>
+					</form>
 				{/if}
-			</h3>
+			</div>
 
 			{#if project.analysis_status === 'analyzing'}
 				<!-- Analysis in progress -->
