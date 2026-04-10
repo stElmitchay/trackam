@@ -22,14 +22,14 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 	cookies.set('google_oauth_state', state, {
 		path: '/',
 		httpOnly: true,
-		secure: true,
+		secure: !import.meta.env.DEV,
 		sameSite: 'lax',
 		maxAge: 600
 	});
 	cookies.set('google_oauth_nonce', rawNonce, {
 		path: '/',
 		httpOnly: true,
-		secure: true,
+		secure: !import.meta.env.DEV,
 		sameSite: 'lax',
 		maxAge: 600
 	});

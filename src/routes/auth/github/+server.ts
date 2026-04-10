@@ -11,14 +11,14 @@ export const GET: RequestHandler = async ({ cookies, locals }) => {
 	cookies.set('github_oauth_state', state, {
 		path: '/',
 		httpOnly: true,
-		secure: true,
+		secure: !import.meta.env.DEV,
 		sameSite: 'lax',
 		maxAge: 600 // 10 minutes
 	});
 
 	const params = new URLSearchParams({
 		client_id: GITHUB_CLIENT_ID,
-		scope: 'repo read:user',
+		scope: 'public_repo read:user',
 		state,
 		allow_signup: 'true'
 	});
