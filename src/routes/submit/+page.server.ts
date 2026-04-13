@@ -123,6 +123,8 @@ export const actions: Actions = {
 		const { data, error } = await supabase.from('projects').insert({
 			title,
 			description,
+			problem_statement: '',
+			solution_summary: '',
 			demo_url: demo_url || null,
 			repo_url: repo_url || null,
 			screenshot_urls,
