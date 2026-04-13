@@ -7,6 +7,7 @@ interface SynthesisInput {
 	ideaEval: IdeaEvaluation | null;
 	dpgEval: DPGEvaluation | null;
 	progressAnalysis: AnalysisResult;
+	existingUnfulfilledSteps: Array<{ title: string; description: string }>;
 	projectContext: {
 		title: string;
 		description: string;
@@ -22,39 +23,58 @@ export interface SynthesisResult {
 	priority_milestones: Array<{
 		title: string;
 		description: string;
+		done_when: string;
 		category: 'feature' | 'bugfix' | 'docs' | 'refactor' | 'test' | 'infra' | 'other';
 		estimated_xp: number;
 		rationale: string;
+		addresses: string[];
 	}>;
 }
 
 export async function synthesizeEvaluations(input: SynthesisInput): Promise<SynthesisResult> {
-	const { ideaEval, dpgEval, progressAnalysis, projectContext } = input;
+	const { ideaEval, dpgEval, progressAnalysis, existingUnfulfilledSteps, projectContext } = input;
 
-	const system = `You are the lead reviewer for Raydr, a developer platform. You have just received three independent evaluations of a project:
+	const system = `You are the lead reviewer for Raydr, a developer platform. You have received independent evaluations of a project and must synthesize them into actionable next steps.
 
-1. **Idea Evaluation** — scores the concept (problem clarity, solution fit, novelty, audience clarity, feasibility, impact)
-2. **DPG Evaluation** — scores Digital Public Goods compliance across 9 indicators
-3. **Progress Analysis** — detects what was actually built from GitHub commits
+YOU ARE THE SOLE SOURCE OF NEXT STEPS. Your priority_milestones are the ONLY new tasks the developer will see. Make them count.
 
-Your job is to SYNTHESIZE these into a single coherent view. Don't just concatenate them — weave them together. Identify the *most important things* this project should focus on next, considering all three lenses simultaneously.
+## Your Inputs
+1. **Idea Evaluation** — scores the concept (problem clarity, solution fit, novelty, audience, feasibility, impact)
+2. **DPG Evaluation** — pass/fail on 9 Digital Public Goods indicators with code evidence
+3. **Progress Analysis** — milestones detected from actual code changes
+4. **Existing Unfulfilled Steps** — goals from previous cycles that haven't been completed yet
 
-Generate 3-5 priority milestones that address the highest-impact gaps. A good milestone might address multiple concerns at once (e.g., "Add open source license" addresses both DPG compliance AND idea concerns about adoption barriers). Each milestone needs a rationale explaining WHICH evaluation(s) it addresses and WHY it's a priority.
+## Your Job
 
-Use the same XP scale (${AI_XP_PER_MILESTONE_MIN}-${AI_XP_PER_MILESTONE_MAX}) and category enum (feature|bugfix|docs|refactor|test|infra|other).
+1. SYNTHESIZE all evaluations into a coherent narrative. Don't concatenate — weave them together.
+2. REVIEW existing unfulfilled steps — are they still relevant given the new progress? If a step is now irrelevant (already done differently, or superseded), mention it in your summary so we know.
+3. GENERATE 3-5 NEW priority milestones that address the highest-impact gaps across all evaluations. Only generate steps that are genuinely NEW — don't duplicate existing unfulfilled steps.
+
+## Rules for generating next steps
+
+Each milestone must be:
+- **Specific and actionable**: "Add MIT LICENSE file to repository root" not "Improve licensing"
+- **Verifiable**: Include a concrete "done_when" condition that can be checked programmatically or visually
+- **Cross-cutting**: Good milestones address multiple evaluation gaps at once (e.g., "Add open source license" fixes DPG criterion 2 AND addresses idea concerns about adoption)
+- **Sequenceable**: Order them logically — what should be done first?
+- **Tagged**: Each must list which evaluation findings it addresses in the "addresses" array using the format "dpg:criterion-N", "idea:dimension_name", or "progress:gap_description"
+
+XP range: ${AI_XP_PER_MILESTONE_MIN}-${AI_XP_PER_MILESTONE_MAX} per milestone based on effort and impact.
 
 Return ONLY a JSON object (no markdown code fences) with this exact structure:
 {
-  "summary": "3-5 sentence narrative weaving all three evaluations into a coherent picture of where this project stands",
-  "strengths": ["top 3 strengths across all evaluations, distinct and concrete"],
-  "critical_gaps": ["top 3 critical gaps across all evaluations, distinct and concrete"],
+  "summary": "3-5 sentence narrative weaving all evaluations into a coherent picture of where this project stands and what was accomplished",
+  "strengths": ["top 3 strengths across all evaluations, concrete and specific"],
+  "critical_gaps": ["top 3 critical gaps across all evaluations, concrete and specific"],
   "priority_milestones": [
     {
-      "title": "short imperative title",
-      "description": "what to do and why",
+      "title": "short imperative title — specific and actionable",
+      "description": "what to do, why it matters, and how to approach it",
+      "done_when": "concrete completion criteria that can be verified (e.g., 'LICENSE file exists in repo root with valid MIT text')",
       "category": "feature|bugfix|docs|refactor|test|infra|other",
       "estimated_xp": <number>,
-      "rationale": "which evaluation(s) this addresses and why it's a priority"
+      "rationale": "which evaluation findings this addresses and why it's a priority NOW",
+      "addresses": ["dpg:criterion-2", "idea:feasibility"]
     }
   ]
 }`;
@@ -69,18 +89,28 @@ Recommendations: ${(ideaEval.recommendations || []).join('; ')}`
 		: '## Idea Evaluation: not available';
 
 	const dpgSection = dpgEval
-		? `## DPG Evaluation (${dpgEval.overall_score}/100)
-Failing/partial criteria:
+		? `## DPG Evaluation (${dpgEval.passing_count}/9 passing — ${dpgEval.approval_likelihood} likelihood)
+Failing criteria:
 ${(dpgEval.checklist || [])
-	.filter((c) => c.status === 'fail' || c.status === 'partial')
-	.map((c) => `- [${c.status}] ${c.criterion}: ${c.reasoning}`)
-	.join('\n') || 'None'}`
+	.filter((c) => c.status === 'fail')
+	.map((c) => `- [FAIL] Criterion ${c.indicator} (${c.criterion}): ${c.evidence}\n  Recommendation: ${c.recommendation}`)
+	.join('\n') || 'None — all passing'}
+Passing criteria:
+${(dpgEval.checklist || [])
+	.filter((c) => c.status === 'pass')
+	.map((c) => `- [PASS] Criterion ${c.indicator} (${c.criterion})`)
+	.join('\n') || 'None'}
+Priority actions: ${(dpgEval.priority_actions || []).map((a) => `[${a.priority}] ${a.action}`).join('; ') || 'None'}`
 		: '## DPG Evaluation: not available';
 
 	const progressSection = `## Progress Analysis (quality ${progressAnalysis.quality_score}/10)
 Summary: ${progressAnalysis.summary}
-Detected milestones (${progressAnalysis.milestones.length}): ${progressAnalysis.milestones.map((m) => m.title).join('; ') || 'None'}
-Raw next steps suggested by progress analysis: ${progressAnalysis.next_steps.map((s) => s.title).join('; ') || 'None'}`;
+Detected milestones (${progressAnalysis.milestones.length}): ${progressAnalysis.milestones.map((m) => `${m.title} [${m.category}]`).join('; ') || 'None'}`;
+
+	const existingStepsSection = existingUnfulfilledSteps.length
+		? `## Existing Unfulfilled Steps (from previous cycles — DO NOT duplicate these)
+${existingUnfulfilledSteps.map((s) => `- "${s.title}": ${s.description}`).join('\n')}`
+		: '## No existing unfulfilled steps.';
 
 	const userMessage = `## Project Context
 Title: ${projectContext.title}
@@ -94,7 +124,9 @@ ${dpgSection}
 
 ${progressSection}
 
-Synthesize these three evaluations into a unified summary, top strengths, critical gaps, and 3-5 priority milestones.`;
+${existingStepsSection}
+
+Synthesize these evaluations. Generate 3-5 NEW priority milestones (don't duplicate existing unfulfilled steps). Each must have a concrete done_when condition and address specific evaluation findings.`;
 
 	const response = await callClaude(system, userMessage);
 	const jsonStr = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -103,7 +135,10 @@ Synthesize these three evaluations into a unified summary, top strengths, critic
 	// Enforce XP caps and required fields
 	result.priority_milestones = (result.priority_milestones || []).map((m) => ({
 		...m,
-		estimated_xp: Math.max(AI_XP_PER_MILESTONE_MIN, Math.min(AI_XP_PER_MILESTONE_MAX, m.estimated_xp))
+		estimated_xp: Math.max(AI_XP_PER_MILESTONE_MIN, Math.min(AI_XP_PER_MILESTONE_MAX, m.estimated_xp)),
+		done_when: m.done_when || '',
+		addresses: m.addresses || [],
+		rationale: m.rationale || ''
 	}));
 	result.strengths = result.strengths || [];
 	result.critical_gaps = result.critical_gaps || [];

@@ -42,18 +42,18 @@ export async function generateNewsletter(
 	const projectList = projects ?? [];
 	const milestoneList = milestones ?? [];
 	const totalXp = (analyses ?? []).reduce((sum: number, a: any) => sum + (a.xp_awarded || 0), 0);
-	const dpgScores = (analyses ?? [])
+	const dpgPassingCounts = (analyses ?? [])
 		.filter((a: any) => a.dpg_evaluation)
-		.map((a: any) => a.dpg_evaluation.overall_score);
-	const avgDpg = dpgScores.length > 0
-		? Math.round(dpgScores.reduce((s: number, v: number) => s + v, 0) / dpgScores.length)
+		.map((a: any) => a.dpg_evaluation.passing_count ?? 0);
+	const avgDpg = dpgPassingCounts.length > 0
+		? Math.round(dpgPassingCounts.reduce((s: number, v: number) => s + v, 0) / dpgPassingCounts.length)
 		: null;
 
 	const statsData = {
 		projectCount: projectList.length,
 		totalXpAwarded: totalXp,
 		milestoneCount: milestoneList.length,
-		avgDpgScore: avgDpg,
+		avgDpgPassing: avgDpg,
 		topProjects: projectList.slice(0, 5).map((p: any) => ({
 			title: p.title,
 			description: p.description,

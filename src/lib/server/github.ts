@@ -293,6 +293,167 @@ export async function getFileContent(
 	return res.text();
 }
 
+export interface CompareData {
+	ahead_by: number;
+	behind_by: number;
+	total_commits: number;
+	diff: string;
+	files: Array<{
+		filename: string;
+		status: string;
+		additions: number;
+		deletions: number;
+		patch?: string;
+	}>;
+}
+
+/**
+ * Get the diff between two refs (e.g., last analysis SHA and HEAD).
+ * Returns truncated diff (~30KB) suitable for sending to Claude.
+ */
+export async function getCompareData(
+	token: string,
+	owner: string,
+	repo: string,
+	base: string,
+	head: string
+): Promise<CompareData> {
+	const res = await fetch(
+		`${GITHUB_API}/repos/${owner}/${repo}/compare/${base}...${head}`,
+		{ headers: headers(token) }
+	);
+
+	if (!res.ok) {
+		throw new GitHubError(res.status, `Failed to compare: ${res.statusText}`);
+	}
+
+	const data = await res.json();
+
+	// Build a truncated unified diff from file patches (~30KB budget)
+	const MAX_DIFF_SIZE = 30_000;
+	let diffStr = '';
+	const files: CompareData['files'] = [];
+
+	for (const file of data.files ?? []) {
+		files.push({
+			filename: file.filename,
+			status: file.status,
+			additions: file.additions,
+			deletions: file.deletions,
+			patch: undefined // don't store raw patches in the structured data
+		});
+
+		if (file.patch && diffStr.length < MAX_DIFF_SIZE) {
+			const header = `--- a/${file.filename}\n+++ b/${file.filename}\n`;
+			const remaining = MAX_DIFF_SIZE - diffStr.length;
+			const patch = file.patch.length > remaining ? file.patch.slice(0, remaining) + '\n... [truncated]' : file.patch;
+			diffStr += header + patch + '\n\n';
+		}
+	}
+
+	return {
+		ahead_by: data.ahead_by ?? 0,
+		behind_by: data.behind_by ?? 0,
+		total_commits: data.total_commits ?? 0,
+		diff: diffStr,
+		files
+	};
+}
+
+export interface TreeEntry {
+	path: string;
+	size: number;
+}
+
+/**
+ * Get the full repo file tree with sizes. Used to understand project structure
+ * and pick which files to sample.
+ */
+export async function getRepoTreeWithSizes(
+	token: string,
+	owner: string,
+	repo: string,
+	branch: string
+): Promise<TreeEntry[]> {
+	const res = await fetch(
+		`${GITHUB_API}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
+		{ headers: headers(token) }
+	);
+
+	if (!res.ok) {
+		throw new GitHubError(res.status, `Failed to fetch repo tree: ${res.statusText}`);
+	}
+
+	const data = await res.json();
+	return (data.tree ?? [])
+		.filter((item: any) => item.type === 'blob')
+		.map((item: any) => ({ path: item.path as string, size: (item.size ?? 0) as number }));
+}
+
+/**
+ * Detect and read key project files (config, entry points, etc.).
+ * Returns up to maxFiles files, staying within maxTotalSize bytes.
+ */
+export async function getSampleFiles(
+	token: string,
+	owner: string,
+	repo: string,
+	tree: TreeEntry[],
+	maxFiles = 10,
+	maxTotalSize = 50_000
+): Promise<Array<{ path: string; content: string }>> {
+	// Priority patterns for understanding project structure
+	const priorityPatterns = [
+		/^package\.json$/,
+		/^README\.md$/i,
+		/^LICENSE/i,
+		/^tsconfig\.json$/,
+		/^pyproject\.toml$/,
+		/^Cargo\.toml$/,
+		/^go\.mod$/,
+		/^requirements\.txt$/,
+		/^Dockerfile$/,
+		/^docker-compose\.ya?ml$/,
+		/^\.github\/workflows\//,
+		/^src\/(index|main|app|server)\.[tjm]/,
+		/^(index|main|app|server)\.[tjm]/,
+		/^src\/lib\//,
+		/^src\/routes\//
+	];
+
+	// Score and sort files by priority
+	const scored = tree
+		.filter(f => f.size > 0 && f.size < 15_000) // skip empty and huge files
+		.map(f => {
+			let score = 0;
+			for (let i = 0; i < priorityPatterns.length; i++) {
+				if (priorityPatterns[i].test(f.path)) {
+					score = priorityPatterns.length - i; // higher = more important
+					break;
+				}
+			}
+			return { ...f, score };
+		})
+		.filter(f => f.score > 0)
+		.sort((a, b) => b.score - a.score);
+
+	const results: Array<{ path: string; content: string }> = [];
+	let totalSize = 0;
+
+	for (const file of scored.slice(0, maxFiles * 2)) {
+		if (results.length >= maxFiles || totalSize >= maxTotalSize) break;
+
+		const content = await getFileContent(token, owner, repo, file.path);
+		if (content) {
+			const truncated = content.slice(0, 10_000);
+			results.push({ path: file.path, content: truncated });
+			totalSize += truncated.length;
+		}
+	}
+
+	return results;
+}
+
 export async function getLicenseInfo(
 	token: string,
 	owner: string,

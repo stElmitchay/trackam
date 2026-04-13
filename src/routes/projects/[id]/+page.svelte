@@ -47,6 +47,7 @@
 	const fulfilledSteps = $derived(nextSteps.filter(s => s.completed));
 
 	let implementing = $state<string | null>(null);
+	let planning = $state<string | null>(null);
 	let showAddMilestone = $state(false);
 	let editingField = $state<string | null>(null);
 	let editValue = $state('');
@@ -101,7 +102,7 @@
 		<h1 class="heading-display text-[clamp(2rem,7vw,4rem)] text-text">{project.title}</h1>
 		<div class="flex items-center flex-wrap gap-3 flex-shrink-0 sm:pt-3">
 			{#if dpgEvaluation}
-				<span class="tag">{dpgEvaluation.overall_score}/100</span>
+				<span class="tag">{dpgEvaluation.passing_count}/9 DPG</span>
 			{/if}
 			{#if project.status === 'featured'}
 				<span class="tag-featured">Featured</span>
@@ -278,6 +279,59 @@
 						</div>
 					{/if}
 				</div>
+			</div>
+		</ScrollReveal>
+	{/if}
+
+	<!-- DPG Compliance -->
+	{#if dpgEvaluation}
+		<ScrollReveal>
+			<div class="border-t border-border pt-10 mb-12">
+				<div class="flex items-baseline justify-between mb-6">
+					<h3 class="heading-section">DPG Compliance</h3>
+					<span class="text-data text-2xl text-text">{dpgEvaluation.passing_count}<span class="text-sm text-text-muted">/9</span></span>
+				</div>
+
+				<div class="flex items-center gap-3 mb-6">
+					<span class="inline-flex items-center gap-1.5 text-sm font-medium {dpgEvaluation.approval_likelihood === 'high' ? 'text-positive' : dpgEvaluation.approval_likelihood === 'medium' ? 'text-text' : 'text-negative'}">
+						{dpgEvaluation.approval_likelihood === 'high' ? 'High' : dpgEvaluation.approval_likelihood === 'medium' ? 'Medium' : 'Low'} approval likelihood
+					</span>
+					<span class="text-xs text-text-muted">(7/9 required)</span>
+				</div>
+
+				<!-- Criteria grid -->
+				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+					{#each dpgEvaluation.checklist as item}
+						<div class="border border-border p-4">
+							<div class="flex items-start gap-2.5 mb-2">
+								<span class="shrink-0 mt-0.5 text-sm {item.status === 'pass' ? 'text-positive' : 'text-negative'}">
+									{item.status === 'pass' ? '●' : '○'}
+								</span>
+								<span class="text-sm font-medium text-text leading-snug">{item.criterion}</span>
+							</div>
+							<p class="text-xs text-text-muted leading-relaxed ml-5">
+								{item.status === 'pass' ? item.evidence : item.recommendation}
+							</p>
+						</div>
+					{/each}
+				</div>
+
+				<!-- Priority actions -->
+				{#if dpgEvaluation.priority_actions?.length}
+					<div class="mt-6 pt-6 border-t border-border">
+						<h4 class="heading-section mb-4">Priority Actions</h4>
+						<ul class="space-y-2.5">
+							{#each dpgEvaluation.priority_actions as action}
+								<li class="flex items-start gap-3 text-sm">
+									<span class="shrink-0 mt-0.5 px-1.5 py-0.5 text-[10px] uppercase tracking-wider font-medium border {action.priority === 'critical' ? 'text-negative border-negative' : action.priority === 'high' ? 'text-text border-border-strong' : 'text-text-muted border-border'}">
+										{action.priority}
+									</span>
+									<span class="text-text-secondary leading-relaxed">{action.action}</span>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
 			</div>
 		</ScrollReveal>
 	{/if}
@@ -476,6 +530,12 @@
 							{#if step.description}
 								<p class="text-sm text-text-secondary mt-1.5 leading-relaxed">{step.description}</p>
 							{/if}
+							{#if step.done_when}
+								<p class="text-xs text-text-muted mt-1.5 flex items-center gap-1.5">
+									<span class="text-text-muted">Done when:</span>
+									<span class="italic">{step.done_when}</span>
+								</p>
+							{/if}
 							<div class="flex items-center gap-2 mt-3">
 								<span class="tag">{step.category}</span>
 								{#if step.source === 'manual'}
@@ -491,24 +551,95 @@
 								<span class="h-1.5 w-1.5 rounded-full bg-text-muted animate-pulse"></span>
 								Implementing
 							</span>
-						{:else if step.implementation_status === 'failed'}
-							<form method="POST" action="?/implement" use:enhance={() => {
-								implementing = step.id;
-								return async ({ update }) => { implementing = null; await update(); };
+						{:else if step.plan_status === 'planning' || planning === step.id}
+							<span class="inline-flex items-center gap-2 px-3 py-1.5 border border-border text-sm text-text-muted shrink-0 mt-0.5">
+								<span class="h-1.5 w-1.5 rounded-full bg-text-muted animate-pulse"></span>
+								Planning
+							</span>
+						{:else if isOwner && project.repo_url && !step.implementation_plan}
+							<form method="POST" action="?/planImplementation" use:enhance={() => {
+								planning = step.id;
+								return async ({ update }) => { planning = null; await update(); };
 							}} class="shrink-0 mt-0.5">
 								<input type="hidden" name="step_id" value={step.id} />
-								<button type="submit" class="inline-flex items-center px-3 py-1.5 border border-negative text-sm text-negative hover:bg-negative/10 transition-colors">Retry</button>
-							</form>
-						{:else if isOwner && project.repo_url}
-							<form method="POST" action="?/implement" use:enhance={() => {
-								implementing = step.id;
-								return async ({ update }) => { implementing = null; await update(); };
-							}} class="shrink-0 mt-0.5">
-								<input type="hidden" name="step_id" value={step.id} />
-								<button type="submit" class="inline-flex items-center px-3 py-1.5 bg-text text-bg text-sm font-semibold hover:opacity-90 transition-opacity">Implement</button>
+								<button type="submit" class="inline-flex items-center px-3 py-1.5 bg-text text-bg text-sm font-semibold hover:opacity-90 transition-opacity">Plan</button>
 							</form>
 						{/if}
 					</div>
+
+					<!-- Terminal-style plan viewer -->
+					{#if step.implementation_plan && step.plan_status === 'ready'}
+						{@const plan = step.implementation_plan}
+						<div class="ml-8 mt-3 border border-border-strong overflow-hidden">
+							<!-- Terminal header -->
+							<div class="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] border-b border-border-strong">
+								<span class="h-2.5 w-2.5 rounded-full bg-negative/60"></span>
+								<span class="h-2.5 w-2.5 rounded-full bg-[#f5c542]/60"></span>
+								<span class="h-2.5 w-2.5 rounded-full bg-positive/60"></span>
+								<span class="text-xs text-text-muted ml-2 font-mono">raydr plan — {step.title}</span>
+							</div>
+							<!-- Terminal body -->
+							<div class="bg-[#0d0d0d] p-4 font-mono text-xs leading-relaxed space-y-3">
+								<div>
+									<span class="text-positive">$</span>
+									<span class="text-text-muted ml-2">plan ready</span>
+								</div>
+								<div class="text-text/90">{plan.summary}</div>
+								<div>
+									<span class="text-text-muted">approach:</span>
+									<div class="text-text/80 ml-2 mt-1">{plan.approach}</div>
+								</div>
+								<div>
+									<span class="text-text-muted">files:</span>
+									{#each plan.files_to_modify as file}
+										<div class="ml-2 mt-1">
+											<span class="{file.action === 'create' ? 'text-positive' : 'text-[#f5c542]'}">{file.action === 'create' ? '+' : '~'}</span>
+											<span class="text-text/90 ml-1">{file.path}</span>
+											<span class="text-text-muted ml-2">— {file.description}</span>
+										</div>
+									{/each}
+								</div>
+								{#if plan.risks?.length}
+									<div>
+										<span class="text-negative">risks:</span>
+										{#each plan.risks as risk}
+											<div class="ml-2 mt-1 text-text-muted">! {risk}</div>
+										{/each}
+									</div>
+								{/if}
+								<div class="text-text-muted">est. {plan.estimated_diff_size}</div>
+							</div>
+							<!-- Action bar -->
+							<div class="flex items-center gap-3 px-4 py-3 bg-[#1a1a1a] border-t border-border-strong">
+								<form method="POST" action="?/approveImplementation" use:enhance={() => {
+									implementing = step.id;
+									return async ({ update }) => { implementing = null; await update(); };
+								}}>
+									<input type="hidden" name="step_id" value={step.id} />
+									<button type="submit" class="inline-flex items-center px-4 py-1.5 bg-positive text-[#0d0d0d] text-xs font-semibold hover:opacity-90 transition-opacity">
+										Approve & Implement
+									</button>
+								</form>
+								<form method="POST" action="?/rejectPlan" use:enhance>
+									<input type="hidden" name="step_id" value={step.id} />
+									<button type="submit" class="inline-flex items-center px-4 py-1.5 border border-border-strong text-xs text-text-muted hover:text-text transition-colors">
+										Reject
+									</button>
+								</form>
+							</div>
+						</div>
+					{:else if step.plan_status === 'failed'}
+						<div class="ml-8 mt-3 flex items-center gap-3">
+							<span class="text-xs text-negative">Plan generation failed</span>
+							<form method="POST" action="?/planImplementation" use:enhance={() => {
+								planning = step.id;
+								return async ({ update }) => { planning = null; await update(); };
+							}}>
+								<input type="hidden" name="step_id" value={step.id} />
+								<button type="submit" class="text-xs text-text-secondary link-draw">Retry</button>
+							</form>
+						</div>
+					{/if}
 				{/each}
 
 				<!-- Fulfilled milestones -->

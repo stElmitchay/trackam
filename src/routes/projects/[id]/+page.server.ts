@@ -2,7 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { parseRepoUrl } from '$lib/server/github';
 import { supabaseAdmin } from '$lib/server/supabase-admin';
-import { implementMilestone } from '$lib/server/ai-implement';
+import { implementMilestone, generateImplementationPlan, executeImplementationPlan } from '$lib/server/ai-implement';
 import { runProjectAnalysis } from '$lib/server/analyze';
 
 const PROJECT_COLUMNS =
@@ -39,7 +39,7 @@ export const load: PageServerLoad = async ({ params, locals: { supabase, session
 			.order('created_at', { ascending: false }),
 		supabase
 			.from('next_steps')
-			.select('id, title, description, category, source, estimated_xp, completed, completed_at, implementation_status, pr_url, created_at')
+			.select('id, title, description, category, source, estimated_xp, completed, completed_at, implementation_status, plan_status, implementation_plan, pr_url, done_when, addresses, created_at')
 			.eq('project_id', params.id)
 			.order('completed', { ascending: true })
 			.order('created_at', { ascending: false }),
@@ -392,5 +392,182 @@ export const actions: Actions = {
 
 			return fail(500, { error: `Implementation failed: ${err.message}` });
 		}
+	},
+
+	planImplementation: async ({ request, params, locals: { supabase, session } }) => {
+		if (!session) return fail(401, { error: 'Not authenticated' });
+
+		const formData = await request.formData();
+		const stepId = formData.get('step_id') as string;
+
+		if (!stepId) return fail(400, { error: 'Missing step ID' });
+
+		const { data: step } = await supabaseAdmin
+			.from('next_steps')
+			.select('*')
+			.eq('id', stepId)
+			.single();
+
+		if (!step) return fail(404, { error: 'Step not found' });
+
+		const { data: project } = await supabase
+			.from('projects')
+			.select('*')
+			.eq('id', params.id)
+			.single();
+
+		if (!project?.repo_url) return fail(400, { error: 'No repository URL' });
+		if (project.submitted_by !== session.user.id) return fail(403, { error: 'Not your project' });
+
+		const { data: ghConn } = await supabase
+			.from('github_connections')
+			.select('access_token')
+			.eq('user_id', session.user.id)
+			.single();
+
+		if (!ghConn) return fail(400, { error: 'GitHub not connected' });
+
+		const parsed = parseRepoUrl(project.repo_url);
+		if (!parsed) return fail(400, { error: 'Invalid repository URL' });
+
+		// Mark as planning
+		await supabaseAdmin
+			.from('next_steps')
+			.update({ plan_status: 'planning' })
+			.eq('id', stepId);
+
+		try {
+			const plan = await generateImplementationPlan({
+				token: ghConn.access_token,
+				owner: parsed.owner,
+				repo: parsed.repo,
+				milestone: {
+					title: step.title,
+					description: step.description,
+					category: step.category
+				},
+				projectContext: {
+					title: project.title,
+					description: project.description,
+					tech_stack: project.tech_stack || []
+				}
+			});
+
+			// Store plan on the step
+			await supabaseAdmin
+				.from('next_steps')
+				.update({
+					implementation_plan: plan,
+					plan_status: 'ready'
+				})
+				.eq('id', stepId);
+
+			return { success: true, plan };
+		} catch (err: any) {
+			await supabaseAdmin
+				.from('next_steps')
+				.update({ plan_status: 'failed' })
+				.eq('id', stepId);
+
+			return fail(500, { error: `Planning failed: ${err.message}` });
+		}
+	},
+
+	approveImplementation: async ({ request, params, locals: { supabase, session } }) => {
+		if (!session) return fail(401, { error: 'Not authenticated' });
+
+		const formData = await request.formData();
+		const stepId = formData.get('step_id') as string;
+
+		if (!stepId) return fail(400, { error: 'Missing step ID' });
+
+		const { data: step } = await supabaseAdmin
+			.from('next_steps')
+			.select('*')
+			.eq('id', stepId)
+			.single();
+
+		if (!step) return fail(404, { error: 'Step not found' });
+		if (!step.implementation_plan) return fail(400, { error: 'No plan to approve' });
+
+		const { data: project } = await supabase
+			.from('projects')
+			.select('*')
+			.eq('id', params.id)
+			.single();
+
+		if (!project?.repo_url) return fail(400, { error: 'No repository URL' });
+		if (project.submitted_by !== session.user.id) return fail(403, { error: 'Not your project' });
+
+		const { data: ghConn } = await supabase
+			.from('github_connections')
+			.select('access_token')
+			.eq('user_id', session.user.id)
+			.single();
+
+		if (!ghConn) return fail(400, { error: 'GitHub not connected' });
+
+		const parsed = parseRepoUrl(project.repo_url);
+		if (!parsed) return fail(400, { error: 'Invalid repository URL' });
+
+		// Mark as implementing
+		await supabaseAdmin
+			.from('next_steps')
+			.update({ implementation_status: 'in_progress', plan_status: 'approved' })
+			.eq('id', stepId);
+
+		try {
+			const pr = await executeImplementationPlan(
+				{
+					token: ghConn.access_token,
+					owner: parsed.owner,
+					repo: parsed.repo,
+					milestone: {
+						title: step.title,
+						description: step.description,
+						category: step.category
+					},
+					projectContext: {
+						title: project.title,
+						description: project.description,
+						tech_stack: project.tech_stack || []
+					}
+				},
+				step.implementation_plan
+			);
+
+			await supabaseAdmin
+				.from('next_steps')
+				.update({
+					implementation_status: 'implemented',
+					pr_url: pr.html_url
+				})
+				.eq('id', stepId);
+
+			return { success: true, prUrl: pr.html_url, prNumber: pr.number };
+		} catch (err: any) {
+			await supabaseAdmin
+				.from('next_steps')
+				.update({ implementation_status: 'failed', plan_status: 'failed' })
+				.eq('id', stepId);
+
+			return fail(500, { error: `Implementation failed: ${err.message}` });
+		}
+	},
+
+	rejectPlan: async ({ request, locals: { session } }) => {
+		if (!session) return fail(401, { error: 'Not authenticated' });
+
+		const formData = await request.formData();
+		const stepId = formData.get('step_id') as string;
+
+		if (!stepId) return fail(400, { error: 'Missing step ID' });
+
+		await supabaseAdmin
+			.from('next_steps')
+			.update({ implementation_plan: null, plan_status: null })
+			.eq('id', stepId);
+
+		return { success: true };
 	}
 };

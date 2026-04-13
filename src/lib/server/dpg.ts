@@ -1,11 +1,14 @@
 import { callClaude } from './claude';
-import type { RepoInfo } from './github';
+import type { RepoInfo, TreeEntry } from './github';
 import type { DPGEvaluation } from '$lib/types';
+import { buildDPGEvaluationPrompt } from './dpg-criteria';
 
 interface DPGInput {
 	repoInfo: RepoInfo;
 	readmeContent: string | null;
 	licenseInfo: { license: string | null; spdx_id: string | null };
+	fileTree: TreeEntry[];
+	keyFiles: Array<{ path: string; content: string }>;
 	projectContext: {
 		title: string;
 		description: string;
@@ -15,34 +18,16 @@ interface DPGInput {
 }
 
 export async function evaluateDPGCompliance(input: DPGInput): Promise<DPGEvaluation> {
-	const system = `You are evaluating a software project against the Digital Public Goods (DPG) Standard. The DPG Standard has 9 indicators:
+	const system = buildDPGEvaluationPrompt();
 
-1. Relevance to Sustainable Development Goals (SDGs)
-2. Use of an approved open source license
-3. Clear ownership and documentation
-4. Platform independence
-5. Documentation quality
-6. Data privacy and applicable laws compliance
-7. Adherence to standards and best practices
-8. Do no harm assessment
-9. Open data/content/AI standards (where applicable)
+	const treeList = input.fileTree
+		.slice(0, 500)
+		.map((f) => `${f.path} (${f.size}b)`)
+		.join('\n');
 
-Evaluate the project against each indicator based on the information provided. Be fair but thorough.
-
-Return ONLY a JSON object (no markdown code fences) with this exact structure:
-{
-  "overall_score": <number 0-100>,
-  "checklist": [
-    {
-      "criterion": "human-readable description of what's checked",
-      "indicator": <number 1-9>,
-      "status": "pass|fail|partial|unknown",
-      "reasoning": "brief explanation"
-    }
-  ]
-}
-
-Include 1-2 checklist items per indicator (9-18 total items). Score overall_score as: pass=full points, partial=half, fail/unknown=0, divided across 9 indicators.`;
+	const keyFilesSection = input.keyFiles
+		.map((f) => `### ${f.path}\n\`\`\`\n${f.content}\n\`\`\``)
+		.join('\n\n');
 
 	const userMessage = `## Project Details
 Title: ${input.projectContext.title}
@@ -61,17 +46,33 @@ Description: ${input.repoInfo.description || 'None'}
 Detected: ${input.licenseInfo.license || 'None'}
 SPDX ID: ${input.licenseInfo.spdx_id || 'None'}
 
-## README Content
-${input.readmeContent ? input.readmeContent.slice(0, 3000) : 'No README found.'}
+## Repository File Tree (${input.fileTree.length} files)
+${treeList}
 
-Evaluate this project against the 9 DPG Standard indicators.`;
+## README Content
+${input.readmeContent ? input.readmeContent.slice(0, 4000) : 'No README found.'}
+
+## Key Source Files
+${keyFilesSection}
+
+Evaluate this project against all 9 DPG Standard criteria using the code evidence above. Remember: code over claims.`;
 
 	const response = await callClaude(system, userMessage);
 	const jsonStr = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 	const result: DPGEvaluation = JSON.parse(jsonStr);
 
-	// Clamp score
-	result.overall_score = Math.max(0, Math.min(100, result.overall_score));
+	// Enforce binary status and recalculate passing_count
+	result.checklist = (result.checklist || []).map((item) => ({
+		...item,
+		status: item.status === 'pass' ? 'pass' : 'fail'
+	}));
+	result.passing_count = result.checklist.filter((c) => c.status === 'pass').length;
+
+	if (result.passing_count >= 7) result.approval_likelihood = 'high';
+	else if (result.passing_count >= 4) result.approval_likelihood = 'medium';
+	else result.approval_likelihood = 'low';
+
+	result.priority_actions = result.priority_actions || [];
 
 	return result;
 }

@@ -239,12 +239,19 @@ export interface IdeaEvaluation {
 }
 
 export interface DPGEvaluation {
-	overall_score: number;
 	checklist: Array<{
-		criterion: string;
 		indicator: number;
-		status: 'pass' | 'fail' | 'partial' | 'unknown';
-		reasoning: string;
+		criterion: string;
+		status: 'pass' | 'fail';
+		evidence: string;
+		recommendation: string;
+	}>;
+	passing_count: number;
+	approval_likelihood: 'low' | 'medium' | 'high';
+	priority_actions: Array<{
+		priority: 'critical' | 'high' | 'medium';
+		action: string;
+		criterion: number;
 	}>;
 }
 
